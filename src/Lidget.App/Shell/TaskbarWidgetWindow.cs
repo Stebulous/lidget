@@ -10,11 +10,21 @@ namespace Lidget.App.Shell;
 /// </summary>
 internal sealed class TaskbarWidgetWindow : Window
 {
+    private static readonly SolidColorBrush HitTestableClear = CreateClearBrush();
+
+    private static SolidColorBrush CreateClearBrush()
+    {
+        var brush = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+        brush.Freeze();
+        return brush;
+    }
+
     public TaskbarWidgetWindow(UIElement content)
     {
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
-        Background = Brushes.Transparent;
+        // A layered window passes clicks through pixels with zero alpha. Alpha 1 is invisible but hit-testable.
+        Background = HitTestableClear;
         ShowInTaskbar = false;
         ShowActivated = false;
         ResizeMode = ResizeMode.NoResize;

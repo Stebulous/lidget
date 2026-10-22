@@ -77,7 +77,7 @@ Do not build these items in the MVP:
 | D22 | Experience | Settings: enable each provider, refresh interval, notification thresholds, widget metric, start with Windows, history retention, statusline feed, widget offset | Covers each configurable decision | agent default |
 | D23 | Approach | Refresh every 5 minutes by default (range 1 to 30). Refresh when the flyout opens and data is older than 60 seconds. Exponential backoff after HTTP 429. | Same default as OpenUsage. Limits load on the endpoints. | agent default |
 | D24 | Approach | Projects: `Lidget.Core`, `Lidget.Providers`, `Lidget.App`, `Lidget.StatusLine`, `Lidget.Tests` | Keeps WPF out of logic that tests cover | agent default |
-| D25 | Approach | Storage in `%LOCALAPPDATA%\Lidget\`: `settings.json`, `history.db` (SQLite), `logs\` | Standard per-user location for an unpackaged app | agent default |
+| D25 | Approach | Storage in `%LOCALAPPDATA%\Lidget\data\`: `settings.json`, `history.db` (SQLite), `logs\` | Standard per-user location. Velopack installs the app in the parent folder `%LOCALAPPDATA%\Lidget\`. | agent default |
 | D26 | Approach | History: one row for each limit at each refresh, kept 90 days by default | Enough data for 24-hour and 7-day charts and later trends | agent default |
 | D27 | Approach | Cost estimates: incremental parse of Claude Code and Codex session logs, priced from a bundled table, labeled "API-equivalent estimate" | Same method as OpenUsage and ccusage | agent default |
 | D28 | Approach | Notifications at 80% and 95% by default, one time for each limit window, plus an optional reset notice | Useful warning without repeated noise | agent default |
@@ -88,6 +88,8 @@ Do not build these items in the MVP:
 | D33 | Approach | The app name, package ID, and data folder name come from one constant | Makes the planned rename a small change | agent default |
 | D34 | Approach | Charts use LiveCharts2. Notifications use `Microsoft.Toolkit.Uwp.Notifications`. | MIT libraries that work in unpackaged WPF apps | agent default |
 | D35 | Delivery | Publish self-contained for `win-x64` | No .NET runtime prerequisite for users | agent default |
+| D36 | Experience | The flyout uses Acrylic, and the settings window uses Mica (refines D7) | Windows uses Acrylic for transient flyouts and Mica for app windows | agent default |
+| D37 | Approach | When `PATH` has the npm `codex.cmd` shim, Lidget starts the native `codex.exe` from the npm package | The shim needs `node` on `PATH` and adds a process between Lidget and the app-server | agent default |
 
 ## Constraints
 
@@ -253,13 +255,13 @@ On HTTP 401 from the usage endpoint, run one forced refresh and retry the reques
 
 - When the user enables the feed, Lidget does these steps:
   1. Copy `~/.claude/settings.json` to `settings.json.lidget-backup`.
-  2. Save the current `statusLine` object to `%LOCALAPPDATA%\Lidget\statusline-original.json`.
+  2. Save the current `statusLine` object to `%LOCALAPPDATA%\Lidget\data\statusline-original.json`.
   3. Set `statusLine` to `{ "type": "command", "command": "<path>\\lidget-statusline.exe" }`.
 - Edit the file with `System.Text.Json.Nodes` so that all other keys stay unchanged.
 - When the user disables the feed, Lidget restores the saved `statusLine` object, or removes the key if no original existed.
 - `lidget-statusline.exe` does these steps:
   1. Read stdin.
-  2. If `rate_limits` is present, write it with a timestamp to `%LOCALAPPDATA%\Lidget\claude-statusline.json` atomically.
+  2. If `rate_limits` is present, write it with a timestamp to `%LOCALAPPDATA%\Lidget\data\claude-statusline.json` atomically.
   3. Run the original command with the same stdin, and copy its stdout to stdout.
   4. If no original command exists, write nothing.
 - `lidget-statusline.exe` must finish in less than 100 ms when no original command exists. Errors in the feed must not change the output of the original command.
@@ -424,7 +426,7 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
 
 Outcome: a user can run Lidget, see the widget in the taskbar, open the flyout, and change settings.
 
-- [ ] **T2.1 Taskbar host and fallback pill**
+- [x] **T2.1 Taskbar host and fallback pill**
   - Objective: make the T0.4 spike a complete `TaskbarHost` with the fallback in [Taskbar host and fallback](#taskbar-host-and-fallback-d15-to-d17).
   - Touches: `src/Lidget.App/Shell/`.
   - Depends on: T0.4.
@@ -436,9 +438,9 @@ Outcome: a user can run Lidget, see the widget in the taskbar, open the flyout, 
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T2.4.
 
-- [ ] **T2.2 Widget view**
+- [x] **T2.2 Widget view**
   - Objective: show logo, bar, and percentage for each enabled provider (D6, D19, D20).
-  - Touches: `src/Lidget.App/Views/WidgetView.xaml`, `ViewModels/WidgetViewModel.cs`, provider logo assets.
+  - Touches: `src/Lidget.App/Views/WidgetView.xaml`, `ViewModels/UsageViewModel.cs`, `ViewModels/ProviderViewModel.cs`, `Resources/ProviderIcons.xaml`.
   - Depends on: T1.2, T1.4, T1.5, T2.1.
   - Acceptance:
     - The widget shows live data for both providers.
@@ -450,19 +452,19 @@ Outcome: a user can run Lidget, see the widget in the taskbar, open the flyout, 
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T2.3 Flyout**
-  - Objective: show provider detail cards above the widget (D7, D21).
-  - Touches: `src/Lidget.App/Views/FlyoutWindow.xaml`, `ViewModels/FlyoutViewModel.cs`.
+- [x] **T2.3 Flyout**
+  - Objective: show provider detail cards above the widget (D7, D21, D36).
+  - Touches: `src/Lidget.App/Views/FlyoutWindow.xaml`, `ViewModels/UsageViewModel.cs`.
   - Depends on: T2.2.
   - Acceptance:
-    - Left-click opens the flyout above the widget with Mica, and a second click or focus loss closes it.
+    - Left-click opens the flyout above the widget with Acrylic, and a second click or focus loss closes it.
     - The cards show session and weekly bars, countdowns, status messages, and last-updated time.
     - The refresh button refreshes the providers.
     - The cost tiles and the chart have layout slots, hidden until M3.
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T2.4 Settings window and startup registration**
+- [x] **T2.4 Settings window and startup registration**
   - Objective: give the user control of each setting in D22.
   - Touches: `src/Lidget.App/Views/SettingsWindow.xaml`, `ViewModels/SettingsViewModel.cs`, `Services/StartupRegistration.cs`.
   - Depends on: T1.1, T1.6.
@@ -603,6 +605,7 @@ The release stays local until the user approves publication.
 | Unsigned installer triggers SmartScreen and stops installs | High / medium | README explains the warning. Signing is listed in [Later](#later). |
 | Session log formats change and cost estimates become wrong | Medium / low | Tolerant parsing, an "estimate" label, a count of unparsed lines in the log. |
 | A rename after the first public release breaks automatic updates, because the Velopack package ID changes | Medium / high | Choose the final name before the first public release (D33). |
+| Explorer sends messages to the embedded widget window and waits while the Lidget UI thread is busy, so the taskbar freezes | Low / high | Keep work off the UI thread. FluentFlyout reports freezes with some shell mods and filters such messages. If QA sees a freeze, add a message filter to `TaskbarWidgetWindow` (do not copy FluentFlyout code). |
 
 ## Assumptions to confirm
 
@@ -703,3 +706,20 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Tests: `dotnet test` passed 76 tests. They include an end-to-end run of `lidget-statusline.exe` with the `cat` command in Git Bash.
 - NativeAOT publish: `dotnet publish src/Lidget.StatusLine -c Release -r win-x64` gave a 1.9 MB executable. A run without an original command took 12 ms after the first start. The publish needs `vswhere.exe` on `PATH` (`C:\Program Files (x86)\Microsoft Visual Studio\Installer`).
 - Open gates: a live check in Claude Code. It changes the user's real Claude Code settings, so it is part of T4.3 QA.
+
+### 2026-10-22 — M2 widget, flyout, and settings (revision after `e40c21c`)
+
+- Environment: the same machine as T0.4 (125% scale, centered taskbar, dark taskbar, dark gray system accent).
+- Command: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test` passed 98 tests.
+- Run: the Debug build of `Lidget.exe`, with synthetic clicks from a per-monitor DPI-aware test thread. A DPI-unaware thread sends scaled cursor positions and clicks the wrong place.
+- Widget: live data for Claude (Pro) and Codex (Plus). The bar colors changed at the D20 thresholds (95% red, 86% amber). A failed Codex start showed a gray bar and the status glyph. The tooltip showed the plan and the reset countdowns.
+- Finding: the widget window is a layered window, and Windows sends clicks through pixels with zero alpha. `TaskbarWidgetWindow` uses a background with alpha 1, so that the full widget receives clicks.
+- Finding: Lidget inherited a `PATH` without `node`, so the npm `codex.cmd` shim failed. D37 resolves the native `codex.exe` from the npm package.
+- Flyout: a click opened it above the widget, and a second click or Esc closed it. The refresh button showed the progress ring. The settings button opened Settings.
+- Context menu: Settings opened the settings window. Quit stopped Lidget and the Codex app-server.
+- Settings: turning Codex off removed it from the widget at once, and `settings.json` changed. Start with Windows added and removed the `Run` value. The statusline toggle in a build without `lidget-statusline.exe` showed an error and did not change `~/.claude/settings.json`.
+- Fallback: with `LIDGET_FORCE_FALLBACK=1`, the pill appeared in the bottom-right corner of the work area. A click opened the flyout above the pill.
+- Open gates for T4.3:
+  - Explorer restart with the M2 host.
+  - 150% and 200% scale, left alignment, auto-hide, and a light taskbar.
+  - The statusline toggle in an installed build.
