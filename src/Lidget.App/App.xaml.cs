@@ -33,6 +33,7 @@ public partial class App : Application
     private ClaudeStatusLineSource? _statusLineSource;
     private IUsageProvider[] _providers = [];
     private RefreshScheduler? _scheduler;
+    private HistoryStore? _history;
     private UsageViewModel? _viewModel;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
@@ -75,7 +76,18 @@ public partial class App : Application
         _providers = [claude, CodexProvider.CreateDefault(time, _loggerFactory)];
 
         _scheduler = new RefreshScheduler(_providers, () => _settings.Current, time, _loggerFactory.CreateLogger<RefreshScheduler>());
-        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time);
+
+        // Subscribe the recorder before the view model, so that the chart reload sees the new rows.
+        _history = HistoryStore.CreateDefault();
+        var recorder = new HistoryRecorder(_history, () => _settings.Current, time, _loggerFactory.CreateLogger<HistoryRecorder>());
+        _scheduler.SnapshotPublished += (_, snapshot) => recorder.Record(snapshot);
+        var historyViewModel = new HistoryViewModel(
+            _history,
+            time,
+            id => _providers.FirstOrDefault(p => p.Id == id)?.DisplayName ?? id);
+        recorder.Recorded += (_, _) => historyViewModel.Reload();
+
+        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time) { History = historyViewModel };
         _viewModel.SettingsRequested += (_, _) => ShowSettings();
         _viewModel.QuitRequested += (_, _) => Quit();
 
@@ -224,6 +236,7 @@ public partial class App : Application
         }
 
         _statusLineSource?.Dispose();
+        _history?.Dispose();
         _http?.Dispose();
         Shutdown();
     }

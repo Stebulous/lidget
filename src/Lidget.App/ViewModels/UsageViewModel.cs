@@ -55,6 +55,17 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool IsRefreshing { get; set; }
 
+    /// <summary>The history chart, or null when no history store is available.</summary>
+    public HistoryViewModel? History
+    {
+        get;
+        init
+        {
+            field = value;
+            ApplySettings(_settings.Current);
+        }
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -96,6 +107,12 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
             {
                 VisibleProviders.Add(provider);
             }
+        }
+
+        if (History is not null)
+        {
+            History.VisibleProviders = VisibleProviders.Select(p => p.Id).ToHashSet();
+            History.Reload();
         }
 
         WidgetChanged?.Invoke(this, EventArgs.Empty);

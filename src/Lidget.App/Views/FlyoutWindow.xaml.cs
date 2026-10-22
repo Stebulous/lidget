@@ -84,6 +84,7 @@ public partial class FlyoutWindow : FluentWindow
         Activate();
         KeepAnchored();
         PlayEntrance();
+        _viewModel.History?.Reload();
         _ = _viewModel.RefreshIfStaleAsync();
     }
 

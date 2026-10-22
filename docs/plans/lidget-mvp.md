@@ -488,9 +488,9 @@ Outcome: the flyout shows the history chart and cost tiles, and threshold notifi
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T3.3 and T3.4.
 
-- [ ] **T3.2 History chart**
+- [x] **T3.2 History chart**
   - Objective: show usage over time in the flyout with LiveCharts2.
-  - Touches: `src/Lidget.App/Views/` (chart control), `FlyoutViewModel.cs`.
+  - Touches: `src/Lidget.App/Views/HistoryChartView.xaml`, `ViewModels/HistoryViewModel.cs`, `src/Lidget.Core/Storage/HistoryRecorder.cs`.
   - Depends on: T2.3, T3.1.
   - Acceptance: the chart shows each limit for 24 hours and 7 days, with a toggle between the two ranges.
     The chart follows the theme and shows an empty state when no data exists.
