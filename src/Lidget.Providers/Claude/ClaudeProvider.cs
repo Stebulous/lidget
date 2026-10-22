@@ -13,13 +13,28 @@ public sealed class ClaudeProvider : IUsageProvider
     private readonly ClaudeUsageClient _client;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
+    private readonly ClaudeStatusLineSource? _statusLine;
+    private readonly Func<bool> _statusLineEnabled;
+    private ProviderSnapshot? _lastEndpoint;
 
-    public ClaudeProvider(ClaudeCredentialStore credentials, ClaudeUsageClient client, TimeProvider time, ILogger<ClaudeProvider>? logger = null)
+    public ClaudeProvider(
+        ClaudeCredentialStore credentials,
+        ClaudeUsageClient client,
+        TimeProvider time,
+        ILogger<ClaudeProvider>? logger = null,
+        ClaudeStatusLineSource? statusLine = null,
+        Func<bool>? statusLineEnabled = null)
     {
         _credentials = credentials;
         _client = client;
         _time = time;
         _logger = logger ?? (ILogger)NullLogger.Instance;
+        _statusLine = statusLine;
+        _statusLineEnabled = statusLineEnabled ?? (() => statusLine is not null);
+        if (_statusLine is not null)
+        {
+            _statusLine.ReadingsChanged += OnStatusLineReadings;
+        }
     }
 
     public string Id => ProviderIds.Claude;
@@ -29,6 +44,56 @@ public sealed class ClaudeProvider : IUsageProvider
     public event EventHandler<ProviderSnapshot>? SnapshotPushed;
 
     public async Task<ProviderSnapshot> RefreshAsync(CancellationToken ct)
+    {
+        var endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
+        _lastEndpoint = endpoint;
+        return Combine(endpoint, StatusLineReadings());
+    }
+
+    private IReadOnlyList<LimitWindow> StatusLineReadings() =>
+        _statusLine is not null && _statusLineEnabled() ? _statusLine.Read() : [];
+
+    private void OnStatusLineReadings(IReadOnlyList<LimitWindow> readings)
+    {
+        if (!_statusLineEnabled() || readings.Count == 0)
+        {
+            return;
+        }
+
+        var endpoint = _lastEndpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
+        Push(Combine(endpoint, readings));
+    }
+
+    /// <summary>
+    /// Combines endpoint and statusline readings: for each limit, the newer reading wins. If the endpoint
+    /// failed, statusline readings keep the widget current, with the status <see cref="ProviderStatus.Stale"/>.
+    /// </summary>
+    internal static ProviderSnapshot Combine(ProviderSnapshot endpoint, IReadOnlyList<LimitWindow> statusLine)
+    {
+        if (statusLine.Count == 0)
+        {
+            return endpoint;
+        }
+
+        var merged = endpoint.Limits.ToDictionary(l => l.Id);
+        foreach (var reading in statusLine)
+        {
+            if (!merged.TryGetValue(reading.Id, out var existing) || reading.ObservedAt > existing.ObservedAt)
+            {
+                merged[reading.Id] = reading;
+            }
+        }
+
+        var order = new Dictionary<LimitKind, int> { [LimitKind.Session] = 0, [LimitKind.Weekly] = 1, [LimitKind.Other] = 2 };
+        var limits = merged.Values.OrderBy(l => order[l.Kind]).ThenBy(l => l.Id, StringComparer.Ordinal).ToArray();
+        var newest = limits.Max(l => l.ObservedAt);
+
+        return endpoint.Status == ProviderStatus.Ok
+            ? endpoint with { Limits = limits, UpdatedAt = newest > endpoint.UpdatedAt ? newest : endpoint.UpdatedAt }
+            : endpoint with { Status = ProviderStatus.Stale, Limits = limits, UpdatedAt = newest };
+    }
+
+    private async Task<ProviderSnapshot> ReadEndpointAsync(CancellationToken ct)
     {
         var credentials = await _credentials.GetCredentialsAsync(forceRefresh: false, ct).ConfigureAwait(false);
         if (credentials.OAuth is null)
@@ -123,5 +188,13 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>Publishes a reading that arrived between refreshes.</summary>
     internal void Push(ProviderSnapshot snapshot) => SnapshotPushed?.Invoke(this, snapshot);
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        if (_statusLine is not null)
+        {
+            _statusLine.ReadingsChanged -= OnStatusLineReadings;
+        }
+
+        return ValueTask.CompletedTask;
+    }
 }

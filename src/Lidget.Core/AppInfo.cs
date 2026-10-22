@@ -10,6 +10,11 @@ public static class AppInfo
 
     public const string PackageId = "Lidget";
 
-    public static string DataDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
+    /// <summary>Overrides <see cref="DataDirectory"/>, for example in tests.</summary>
+    public const string DataDirectoryVariable = "LIDGET_DATA_DIR";
+
+    public static string DataDirectory =>
+        Environment.GetEnvironmentVariable(DataDirectoryVariable) is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
 }

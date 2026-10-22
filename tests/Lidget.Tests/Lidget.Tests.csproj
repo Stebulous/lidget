@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Lidget.Core\Lidget.Core.csproj" />
     <ProjectReference Include="..\..\src\Lidget.Providers\Lidget.Providers.csproj" />
+    <ProjectReference Include="..\..\src\Lidget.StatusLine\Lidget.StatusLine.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

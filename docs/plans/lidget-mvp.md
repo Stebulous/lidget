@@ -408,9 +408,9 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T1.3 and T1.4.
 
-- [ ] **T1.6 Claude statusline feed**
+- [x] **T1.6 Claude statusline feed**
   - Objective: implement [Claude statusline feed](#claude-statusline-feed-d11).
-  - Touches: `src/Lidget.StatusLine/`, `src/Lidget.Providers/Claude/ClaudeStatusLineSource.cs`, `src/Lidget.Core/Storage/ClaudeSettingsEditor.cs`, tests.
+  - Touches: `src/Lidget.StatusLine/`, `src/Lidget.Core/StatusLine/StatusLineFiles.cs`, `src/Lidget.Providers/Claude/ClaudeStatusLineSource.cs`, `src/Lidget.Providers/Claude/ClaudeStatusLineInstaller.cs`, tests.
   - Depends on: T1.1, T1.4.
   - Acceptance:
     - Tests prove that enabling and disabling the feed in `settings.json` keeps other keys, restores the original, and removes the key when no original existed.
@@ -692,3 +692,14 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Codex result: `Ok`, plan `Plus`, session 86%, weekly 47%. The second refresh reused the running app-server.
 - Process check after dispose: no `codex app-server` process from the npm installation remained.
 - The usage endpoint accepted the `Lidget/0.1.0` User-Agent. Lidget does not send a Claude Code User-Agent.
+
+### 2026-10-22 — T1.6 Claude statusline feed
+
+- Source: [Claude Code statusline documentation](https://code.claude.com/docs/en/statusline).
+  - On Windows, Claude Code runs the statusline command in Git Bash when Git Bash is installed, or else in PowerShell. Paths in the command must use forward slashes. `~` works in both shells.
+  - `rate_limits.five_hour` and `rate_limits.seven_day` have `used_percentage` (0 to 100) and `resets_at` (Unix seconds). Claude Code drops a window after its `resets_at` time.
+  - A custom statusline hides most footer keyboard hints in Claude Code. The Settings toggle (T2.4) must tell the user.
+- Implementation: the installer edits only the `statusLine` key and keeps display options such as `padding`. The wrapper runs the original command in the same shell that Claude Code uses.
+- Tests: `dotnet test` passed 76 tests. They include an end-to-end run of `lidget-statusline.exe` with the `cat` command in Git Bash.
+- NativeAOT publish: `dotnet publish src/Lidget.StatusLine -c Release -r win-x64` gave a 1.9 MB executable. A run without an original command took 12 ms after the first start. The publish needs `vswhere.exe` on `PATH` (`C:\Program Files (x86)\Microsoft Visual Studio\Installer`).
+- Open gates: a live check in Claude Code. It changes the user's real Claude Code settings, so it is part of T4.3 QA.

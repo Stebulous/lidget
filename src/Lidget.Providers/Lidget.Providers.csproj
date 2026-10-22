@@ -9,4 +9,8 @@
     <ProjectReference Include="..\Lidget.Core\Lidget.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lidget.Tests" />
+  </ItemGroup>
+
 </Project>

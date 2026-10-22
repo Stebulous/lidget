@@ -6,6 +6,13 @@
     <AssemblyName>lidget-statusline</AssemblyName>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
   </PropertyGroup>
+
+  <!-- Link the two dependency-free files instead of referencing Lidget.Core, to keep the wrapper small. -->
+  <ItemGroup>
+    <Compile Include="..\Lidget.Core\AppInfo.cs" Link="Shared\AppInfo.cs" />
+    <Compile Include="..\Lidget.Core\StatusLine\StatusLineFiles.cs" Link="Shared\StatusLineFiles.cs" />
+  </ItemGroup>
 
 </Project>
