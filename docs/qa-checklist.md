@@ -33,8 +33,8 @@ Expected result:
 | Wait 5 minutes | The values change when the provider values change. The countdowns match the provider to the minute. |
 | Right-click the widget | The menu shows **Refresh**, **Settings**, and **Quit Lidget**. |
 | Restart Explorer (`taskkill /f /im explorer.exe`, then `start explorer.exe`) | The widget comes back in the taskbar within 30 seconds. |
-| Change the display scale to 100%, 150%, and 200% | The widget stays in the taskbar, next to the system tray, at each scale. |
-| Set the taskbar alignment to left | The widget stays next to the system tray. |
+| Change the display scale to 100%, 150%, and 200% | At each scale, the widget stays in the taskbar, next to the system tray. If the widget would cover taskbar buttons, it moves to the bottom-right corner of the screen. It goes back into the taskbar when there is space again. |
+| Set the taskbar alignment to left | The widget stays at the right side of the taskbar, left of the Widgets button. |
 | Turn on **Automatically hide the taskbar** | The widget hides and shows with the taskbar. |
 | Change the Windows mode from dark to light | The widget text and bars stay readable on the light taskbar. |
 | Start Lidget with `LIDGET_FORCE_FALLBACK=1` | A toast says "Lidget could not join the taskbar". The widget shows in the bottom-right corner. |

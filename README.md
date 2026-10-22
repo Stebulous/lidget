@@ -16,7 +16,7 @@ It tracks Claude (Pro and Max plans, through Claude Code) and Codex (ChatGPT pla
   - The API-equivalent cost for today, the last 7 days, and the last 30 days, from local session logs.
   - A history chart of the last 24 hours or 7 days.
 - A toast notification shows when a limit passes 80% and 95%. Each threshold notifies one time for each limit window.
-- If Lidget cannot join the taskbar, it shows the widget in a small window in the bottom-right corner of the screen.
+- If Lidget cannot join the taskbar, or the widget would cover taskbar buttons, the widget moves to a small window in the screen corner.
 - Settings: providers, the widget metric, the refresh interval (5 minutes by default), thresholds, start with Windows, and history retention.
 - Lidget checks GitHub Releases for updates every 24 hours, and installs a downloaded update at the next start.
 

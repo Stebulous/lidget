@@ -94,6 +94,7 @@ Do not build these items in the MVP:
 | D40 | Approach | User data is in `%LOCALAPPDATA%\LidgetData`, outside the Velopack install folder `%LOCALAPPDATA%\Lidget`. An uninstall keeps the user data. | The T4.1 test showed that the Velopack installer and uninstaller delete the complete install folder. | agent default |
 | D41 | Delivery | The release workflow uploads to a draft GitHub release. The maintainer publishes it after a review. The installer adds a Start menu shortcut only. | Lidget updates only from published releases, so a bad build does not reach users before the review. A taskbar widget does not need a desktop shortcut. | agent default |
 | D42 | Delivery | The final name is "Lidget", from "limits" and "widget". The package ID `Lidget` is fixed from the first release. | The repository has this name, and the name describes the app. | user |
+| D43 | Experience | `TaskbarHost` reads the taskbar button edges with UI Automation. If the widget would cover app buttons, Lidget shows the pill. The widget goes back into the taskbar when the space is 24 DIP larger than the widget needs. With left alignment, the widget ends left of the Widgets button. | T4.3 showed that at 200% scale the widget covered app buttons, and that with left alignment it covered the Widgets button. The extra space stops a switch at each small change. | agent default |
 
 ## Constraints
 
@@ -296,7 +297,10 @@ On HTTP 401 from the usage endpoint, run one forced refresh and retry the reques
 - `WM_SETTINGCHANGE` (taskbar alignment and theme)
 - a 2-second timer that checks the tray rectangle
 
-If `Shell_TrayWnd` is absent for 30 seconds, or the taskbar is not at the bottom, `TaskbarHost` shows `FallbackPillWindow`.
+When Explorer exits, Windows destroys the embedded window without a WPF `Closed` event.
+`TaskbarHost` therefore checks the native window handle and its parent at each event, and embeds a new window when the handle is not valid.
+
+If `Shell_TrayWnd` is absent for 30 seconds, the taskbar is not at the bottom, or the widget would cover taskbar buttons (D43), `TaskbarHost` shows `FallbackPillWindow`.
 The pill is a topmost, draggable, borderless window with the same widget content.
 `TaskbarHost` shows one toast that explains the fallback.
 
@@ -565,13 +569,14 @@ The release stays local until the user approves publication.
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T4.1.
 
-- [ ] **T4.3 Release candidate QA**
+- [x] **T4.3 Release candidate QA**
   - Objective: prove the MVP success criteria on a clean install.
   - Touches: plan evidence log.
   - Depends on: T4.1, T4.2.
   - Acceptance:
     - Every item in `docs/qa-checklist.md` passes on an installed build, and the evidence log records the results with the revision.
-    - Do not publish a release or push a tag until the user approves.
+    - Do not publish a release or push a tag until the user approves. The user approved the v0.1.0 release on 2026-10-22.
+  - Open gate: the one-week check continues after the release.
   - Execution skill: verify-and-stop.
   - Parallel-safe: no.
 
@@ -772,3 +777,29 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Pages: `README.md`, `docs/qa-checklist.md`, and `THIRD-PARTY-NOTICES.md`. The screenshots in `docs/images/` show live data from the Debug build.
 - Check: the `repo-docs` audit script found 0 errors and 0 warnings in the changed pages.
 - Commands: `dotnet build Lidget.sln`, `dotnet test Lidget.sln`, and `./scripts/pack.ps1` ran during T4.1 and T4.2.
+
+### 2026-10-22 — T4.3 release candidate QA (revisions `d618420` and `5f6b81c`)
+
+- Environment: the same machine as T0.4 (2560 × 1440, 125% scale, centered taskbar, dark mode). `dotnet test` passed 165 tests.
+- Builds: the shell checks used the Debug build of `d618420`. The installer checks used a local `0.1.0` package of `d618420` and a `0.1.1` package of `5f6b81c`.
+- Install: Lidget started from the installer and embedded the widget within 1 second. The `Run` value and the Start menu shortcut were present, and there was no desktop shortcut. The tooltip showed the plan, the limits, and the reset countdowns.
+- Finding: after an Explorer restart, the widget did not come back, and the log showed a WPF error at each timer tick. Windows destroyed the child window without a `Closed` event. `d618420` checks the native handle. Two restarts after the fix embedded the widget again within 2 seconds.
+- Finding: at 200% scale, the widget covered app buttons, and the pill showed outside the screen. With left alignment, the widget covered the Widgets button. D43 (`d618420`) and the pill placement in `0bbb709` correct this. After the fix:
+  - 100% and 150%: the widget stayed next to the tray.
+  - 200%: the pill showed in the bottom-right corner of the screen, with the toast.
+  - Back to 125%: the widget went back into the taskbar.
+  - Left alignment: the widget stayed left of the Widgets button.
+- Auto-hide: the widget hid and showed with the taskbar. The taskbar hides only when a window other than the taskbar has the focus.
+- Light mode: the icons, the text, and the bars changed to the light taskbar colors, and stayed readable.
+- Flyout: a click opened it above the widget, and Esc closed it. The refresh button showed the progress ring. The cost tiles showed the estimate label. The **24 h** and **7 d** tabs changed the chart range.
+- Settings: Codex off removed Codex from the widget at once. **Start with Windows** removed and added the `Run` value. **Open data folder** opened `%LOCALAPPDATA%\LidgetData`. **Quit Lidget** stopped Lidget and its Codex app-server.
+- Statusline feed: the toggle wrote `~/AppData/Local/Lidget/current/lidget-statusline.exe` as the `statusLine` command. The original settings had no `statusLine`. A simulated Claude Code call, with JSON sent to the command from Git Bash, changed the Claude value in the widget within 10 seconds. The interactive Claude Code TUI was not available to the test.
+- Finding: with `LIDGET_FORCE_FALLBACK=1`, the toast showed, but the pill grew past the right edge of the screen when data arrived. WPF raises `SizeChanged` before it resizes the native window. `5f6b81c` places the pill after the resize, and the Debug build showed the full pill in the corner.
+- Notifications: a real Claude session reset (96% to 4%) showed the reset notice. T3.4 and T4.1 record the threshold toasts.
+- Update: with `LIDGET_UPDATE_FEED` set to the local release folder, `0.1.0` downloaded `0.1.1` in 7 seconds. After **Quit Lidget**, the Start menu shortcut started `0.1.1`.
+- Uninstall: with the statusline feed on, `Update.exe --uninstall --silent` removed the install folder, the shortcut, the `Run` value, and the uninstall entry. `~/.claude/settings.json` was the same as the backup from before the test. `LidgetData` stayed.
+- System settings: the scale, alignment, auto-hide, and color mode are back to their values from before the test.
+- Not checked: a full-screen app, sleep and resume, and an accent color change.
+- Open gates:
+  - The one-week check.
+  - An update from a published GitHub release.
