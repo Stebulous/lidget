@@ -298,7 +298,7 @@ The pill is a topmost, draggable, borderless window with the same widget content
 
 Outcome: the solution builds, and three spikes prove the three unknowns: the Claude endpoint, the Codex app-server, and taskbar embedding.
 
-- [ ] **T0.1 Bootstrap the repository**
+- [x] **T0.1 Bootstrap the repository**
   - Objective: create a buildable solution with CI.
   - Touches: `.gitignore`, `.gitattributes`, `LICENSE` (MIT), `README.md` (stub with purpose and "work in progress"), `Lidget.sln`, `Directory.Build.props`, all projects in [Architecture](#architecture), `src/Lidget.Core/AppInfo.cs`, `.github/workflows/ci.yml`.
   - Depends on: none.
@@ -311,7 +311,7 @@ Outcome: the solution builds, and three spikes prove the three unknowns: the Cla
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T0.2 Spike: Claude usage endpoint**
+- [x] **T0.2 Spike: Claude usage endpoint**
   - Objective: prove that the endpoint returns session and weekly limits with the user's real login.
   - Touches: `tests/Lidget.Tests/fixtures/claude/` (sanitized responses), plan evidence log.
   - Depends on: T0.1.
@@ -324,7 +324,7 @@ Outcome: the solution builds, and three spikes prove the three unknowns: the Cla
   - Execution skill: investigate-first.
   - Parallel-safe: yes, with T0.3 and T0.4.
 
-- [ ] **T0.3 Spike: Codex app-server**
+- [x] **T0.3 Spike: Codex app-server**
   - Objective: prove that `account/rateLimits/read` returns the 5-hour and weekly windows.
   - Touches: `tests/Lidget.Tests/fixtures/codex/` (sanitized JSON-RPC transcript and generated schema), plan evidence log.
   - Depends on: T0.1.
@@ -337,7 +337,7 @@ Outcome: the solution builds, and three spikes prove the three unknowns: the Cla
   - Execution skill: investigate-first.
   - Parallel-safe: yes, with T0.2 and T0.4.
 
-- [ ] **T0.4 Spike: taskbar embedding**
+- [x] **T0.4 Spike: taskbar embedding**
   - Objective: prove a WPF child window in the taskbar, left of the tray.
   - Touches: `src/Lidget.App/Shell/` (spike code that T2.1 can keep).
   - Depends on: T0.1.
