@@ -8,6 +8,8 @@ internal static partial class NativeMethods
     public const long WS_CHILD = 0x40000000L;
     public const long WS_POPUP = 0x80000000L;
 
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_NOACTIVATE = 0x0010;
     public const uint SWP_SHOWWINDOW = 0x0040;
     public static readonly nint HWND_TOP = 0;
@@ -53,6 +55,9 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool IsWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetParent(nint hwnd);
 
     [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial uint RegisterWindowMessage(string name);
