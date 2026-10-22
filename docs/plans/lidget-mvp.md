@@ -352,7 +352,7 @@ Outcome: the solution builds, and three spikes prove the three unknowns: the Cla
 
 Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both providers, and unit tests prove the logic.
 
-- [ ] **T1.1 Core model and settings**
+- [x] **T1.1 Core model and settings**
   - Objective: add the data model, the provider interface, the settings store, and the atomic file writer.
   - Touches: `src/Lidget.Core/Models/`, `Providers/IUsageProvider.cs`, `Storage/SettingsStore.cs`, `Storage/AtomicFile.cs`, tests.
   - Depends on: T0.1.
@@ -363,7 +363,7 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T1.2 Refresh scheduler**
+- [x] **T1.2 Refresh scheduler**
   - Objective: refresh providers on the interval, on demand, and with backoff.
   - Touches: `src/Lidget.Core/Refresh/`, tests.
   - Depends on: T1.1.
@@ -371,7 +371,7 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T1.3 to T1.6.
 
-- [ ] **T1.3 Claude credential store with guarded refresh**
+- [x] **T1.3 Claude credential store with guarded refresh**
   - Objective: implement [Claude guarded refresh](#claude-guarded-refresh-d10).
   - Touches: `src/Lidget.Providers/Claude/ClaudeCredentialStore.cs`, tests.
   - Depends on: T0.2, T1.1.
@@ -386,7 +386,7 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T1.2, T1.5, and T1.6.
 
-- [ ] **T1.4 Claude usage client, mapper, and provider**
+- [x] **T1.4 Claude usage client, mapper, and provider**
   - Objective: map the endpoint response to a `ProviderSnapshot`.
   - Touches: `src/Lidget.Providers/Claude/ClaudeUsageClient.cs`, `ClaudeUsageMapper.cs`, `ClaudeProvider.cs`, tests.
   - Depends on: T1.3.
@@ -394,7 +394,7 @@ Outcome: `Lidget.Core` and `Lidget.Providers` produce correct snapshots for both
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T1.5.
 
-- [ ] **T1.5 Codex app-server client and provider**
+- [x] **T1.5 Codex app-server client and provider**
   - Objective: implement [Codex app-server client](#codex-app-server-client-d12).
   - Touches: `src/Lidget.Providers/Codex/`, tests.
   - Depends on: T0.3, T1.1.
@@ -684,3 +684,11 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Explorer restart: `Stop-Process -Name explorer -Force`. Explorer restarted automatically. Lidget embedded a new window in less than 10 seconds, and its position followed the changed tray width.
 - Finding: Explorer destroys the child window with the taskbar. A hidden top-level `HwndSource` receives `TaskbarCreated`, and a 2-second timer embeds again.
 - Open gates for T2.1: 150% and 200% scale, left alignment, auto-hide, mouse input and context menus in the child window, and the fallback pill.
+
+### 2026-10-22 — T1.4 and T1.5 live provider check
+
+- Command: a temporary console program outside the repository called `ClaudeProvider.RefreshAsync` and `CodexProvider.RefreshAsync` (from `CodexProvider.CreateDefault`) one time each, then refreshed Codex again and disposed it.
+- Claude result: `Ok`, plan `Pro`, session 64%, weekly 54%. The token was valid, so no refresh request was sent.
+- Codex result: `Ok`, plan `Plus`, session 86%, weekly 47%. The second refresh reused the running app-server.
+- Process check after dispose: no `codex app-server` process from the npm installation remained.
+- The usage endpoint accepted the `Lidget/0.1.0` User-Agent. Lidget does not send a Claude Code User-Agent.
