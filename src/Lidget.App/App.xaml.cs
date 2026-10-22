@@ -39,6 +39,7 @@ public partial class App : Application
     private CostCache? _costCache;
     private CostTracker? _costs;
     private ToastService? _toasts;
+    private UpdateService? _updates;
     private UsageViewModel? _viewModel;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
@@ -126,6 +127,9 @@ public partial class App : Application
         _taskbarHost.Start();
         _scheduler.Start();
         _costs?.Start();
+
+        _updates = new UpdateService(_loggerFactory.CreateLogger<UpdateService>(), time);
+        _updates.Start();
     }
 
     /// <summary>Creates the local cost estimates (plan task T3.3), or returns null when the cache or the pricing table cannot load.</summary>
@@ -293,6 +297,11 @@ public partial class App : Application
 
         try
         {
+            if (_updates is not null)
+            {
+                await _updates.DisposeAsync();
+            }
+
             if (_costs is not null)
             {
                 await _costs.DisposeAsync();

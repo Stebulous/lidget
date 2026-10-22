@@ -77,7 +77,7 @@ Do not build these items in the MVP:
 | D22 | Experience | Settings: enable each provider, refresh interval, notification thresholds, widget metric, start with Windows, history retention, statusline feed, widget offset | Covers each configurable decision | agent default |
 | D23 | Approach | Refresh every 5 minutes by default (range 1 to 30). Refresh when the flyout opens and data is older than 60 seconds. Exponential backoff after HTTP 429. | Same default as OpenUsage. Limits load on the endpoints. | agent default |
 | D24 | Approach | Projects: `Lidget.Core`, `Lidget.Providers`, `Lidget.App`, `Lidget.StatusLine`, `Lidget.Tests` | Keeps WPF out of logic that tests cover | agent default |
-| D25 | Approach | Storage in `%LOCALAPPDATA%\Lidget\data\`: `settings.json`, `history.db` (SQLite), `logs\` | Standard per-user location. Velopack installs the app in the parent folder `%LOCALAPPDATA%\Lidget\`. | agent default |
+| D25 | Approach | Storage in `%LOCALAPPDATA%\LidgetData\`: `settings.json`, `history.db` (SQLite), `logs\` (location changed by D40) | Standard per-user location | agent default |
 | D26 | Approach | History: one row for each limit at each refresh, kept 90 days by default | Enough data for 24-hour and 7-day charts and later trends | agent default |
 | D27 | Approach | Cost estimates: incremental parse of Claude Code and Codex session logs, priced from a bundled table, labeled "API-equivalent estimate" | Same method as OpenUsage and ccusage | agent default |
 | D28 | Approach | Notifications at 80% and 95% by default, one time for each limit window, plus an optional reset notice | Useful warning without repeated noise | agent default |
@@ -92,6 +92,8 @@ Do not build these items in the MVP:
 | D37 | Approach | When `PATH` has the npm `codex.cmd` shim, Lidget starts the native `codex.exe` from the npm package | The shim needs `node` on `PATH` and adds a process between Lidget and the app-server | agent default |
 | D38 | Approach | `CostTracker` scans the session logs separately from the limit refresh, and `ProviderSnapshot` has no cost field | A log scan and a limit refresh have different sources, timings, and failures. Limit snapshots stay small for history and notifications. | agent default |
 | D39 | Approach | A notification window is a limit ID and its reset time. A reset time that changes by 30 minutes or less is the same window. The reset notice shows only for a window that reached a threshold. A click on a toast opens the flyout. | Sources report reset times with small differences. A reset notice after low usage is noise. | agent default |
+| D40 | Approach | User data is in `%LOCALAPPDATA%\LidgetData`, outside the Velopack install folder `%LOCALAPPDATA%\Lidget`. An uninstall keeps the user data. | The T4.1 test showed that the Velopack installer and uninstaller delete the complete install folder. | agent default |
+| D41 | Delivery | The release workflow uploads to a draft GitHub release. The maintainer publishes it after a review. The installer adds a Start menu shortcut only. | Lidget updates only from published releases, so a bad build does not reach users before the review. A taskbar widget does not need a desktop shortcut. | agent default |
 
 ## Constraints
 
@@ -259,13 +261,13 @@ On HTTP 401 from the usage endpoint, run one forced refresh and retry the reques
 
 - When the user enables the feed, Lidget does these steps:
   1. Copy `~/.claude/settings.json` to `settings.json.lidget-backup`.
-  2. Save the current `statusLine` object to `%LOCALAPPDATA%\Lidget\data\statusline-original.json`.
+  2. Save the current `statusLine` object to `%LOCALAPPDATA%\LidgetData\statusline-original.json`.
   3. Set `statusLine` to `{ "type": "command", "command": "<path>\\lidget-statusline.exe" }`.
 - Edit the file with `System.Text.Json.Nodes` so that all other keys stay unchanged.
 - When the user disables the feed, Lidget restores the saved `statusLine` object, or removes the key if no original existed.
 - `lidget-statusline.exe` does these steps:
   1. Read stdin.
-  2. If `rate_limits` is present, write it with a timestamp to `%LOCALAPPDATA%\Lidget\data\claude-statusline.json` atomically.
+  2. If `rate_limits` is present, write it with a timestamp to `%LOCALAPPDATA%\LidgetData\claude-statusline.json` atomically.
   3. Run the original command with the same stdin, and copy its stdout to stdout.
   4. If no original command exists, write nothing.
 - `lidget-statusline.exe` must finish in less than 100 ms when no original command exists. Errors in the feed must not change the output of the original command.
@@ -531,16 +533,16 @@ Outcome: the flyout shows the history chart and cost tiles, and threshold notifi
 Outcome: a tagged commit produces an installable, self-updating release.
 The release stays local until the user approves publication.
 
-- [ ] **T4.1 Velopack integration and release workflow**
+- [x] **T4.1 Velopack integration and release workflow**
   - Objective: install and update with Velopack from GitHub Releases (D13, D35).
-  - Touches: `src/Lidget.App/App.xaml.cs` (`VelopackApp.Build().Run()` first in `Main`), `Services/UpdateService.cs`, `.github/workflows/release.yml`.
+  - Touches: `src/Lidget.App/Program.cs` (`VelopackApp.Build().Run()` first in `Main`), `Services/UpdateService.cs`, `scripts/pack.ps1`, `dotnet-tools.json`, `.github/workflows/release.yml`.
   - Depends on: M2.
   - Steps:
     1. Check for updates at startup and every 24 hours.
     2. Download updates in the background, and apply them at the next start.
     3. On a `v*` tag, the workflow runs `dotnet publish -r win-x64 --self-contained`, then `vpk pack`, then `vpk upload github`.
     4. Include `lidget-statusline.exe` in the package.
-    5. In the Velopack uninstall hook, call `ToastNotificationManagerCompat.Uninstall()`. It removes the toast registration under `HKCU\Software\Classes`.
+    5. In the Velopack uninstall hook, restore the Claude Code statusline setting, remove the `Run` value, and call `ToastNotificationManagerCompat.Uninstall()`.
   - Acceptance:
     - A local `vpk pack` installs Lidget.
     - A second local package with a higher version updates the installed app from a local feed.
@@ -614,10 +616,11 @@ The release stays local until the user approves publication.
 
 ## Assumptions to confirm
 
-- **Final app name.** The plan uses "Lidget". Confirm the final name before T4.1. A name change before T4.1 changes `AppInfo`, project names, and the repository name.
+- **Final app name.** The plan uses "Lidget". Confirm the final name before the first public release. A name change changes `AppInfo`, the Velopack package ID in `scripts/pack.ps1`, project names, and the repository name.
+- **Repository.** `AppInfo.RepositoryUrl` is `https://github.com/Stebulous/lidget`, the update feed. Confirm the repository before the first release.
 - **Claude endpoint.** The plan assumes the endpoint and refresh URL in [Claude data sources](#claude-data-sources). Confirm in T0.2, before T1.3.
 - **Codex app-server.** The plan assumes `account/rateLimits/read` gives the 5-hour and weekly windows. Confirm in T0.3, before T1.5.
-- **Toast library.** `Microsoft.Toolkit.Uwp.Notifications` works in the unpackaged Debug build (T3.4 evidence). Confirm it again with a Velopack install in T4.1. If it fails, use the Windows App SDK `AppNotificationManager`.
+- **Toast library.** `Microsoft.Toolkit.Uwp.Notifications` works in the Debug build and in a Velopack install (T3.4 and T4.1 evidence).
 
 ## Later
 
@@ -749,3 +752,18 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Click: a click on the toast opened the flyout.
 - Fallback: with `LIDGET_FORCE_FALLBACK=1`, Lidget showed the toast "Lidget could not join the taskbar" one time, and the pill. Quit from the pill menu stopped Lidget and its Codex app-server.
 - Open gates: the reset notice in a real limit reset, and toasts from a Velopack install (T4.3).
+
+### 2026-10-22 — T4.1 Velopack install, update, and uninstall (revision after `3022f22`)
+
+- Tools: Velopack and `vpk` 1.2.161 (local tool in `dotnet-tools.json`), actionlint 1.7.7.
+- Command: `./scripts/pack.ps1 -Version 0.1.0` made `Lidget-win-Setup.exe` (90 MB) and a full package (83 MB). The publish folder has `Lidget.exe` and `lidget-statusline.exe`.
+- Finding: `Lidget-win-Setup.exe --silent` deleted the existing `%LOCALAPPDATA%\Lidget\data` folder. A backup restored the data. D40 moves user data to `%LOCALAPPDATA%\LidgetData`.
+- Install: the silent install of 0.1.0 added a Start menu shortcut and no desktop shortcut. `LidgetData` stayed unchanged. At the first start, Lidget wrote the `Run` value for `%LOCALAPPDATA%\Lidget\current\Lidget.exe`.
+- Toast: the installed app showed "Claude: Session (5h) at 86%" with the app ID `velopack.Lidget`.
+- Update: with `LIDGET_UPDATE_FEED` set to the local release folder, 0.1.0 downloaded 0.1.1 in 7 seconds. The next start from the Start menu stub ran 0.1.1.
+- Without the variable, the update check failed with HTTP 404, because the GitHub repository does not exist yet. Lidget logged a warning and continued.
+- Uninstall: `Update.exe uninstall --silent` ran the uninstall hook in 283 ms. The `Run` value, the toast registration, the install folder, and the shortcut were removed. `LidgetData` stayed.
+- Workflow: `actionlint` passed on `release.yml` and `ci.yml`. The workflow did not run, because no remote exists.
+- Open gates for T4.3:
+  - The statusline restore in the uninstall hook, with the feed on. This test changes `~/.claude/settings.json`.
+  - An update from a published GitHub release.

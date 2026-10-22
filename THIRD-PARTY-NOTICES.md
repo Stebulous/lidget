@@ -77,4 +77,5 @@ SOFTWARE.
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | MIT |
 | [Microsoft.Toolkit.Uwp.Notifications](https://github.com/CommunityToolkit/WindowsCommunityToolkit) | MIT |
 | [Microsoft.Extensions.Logging](https://github.com/dotnet/runtime) | MIT |
+| [Velopack](https://github.com/velopack/velopack) | MIT |
 | [Serilog.Extensions.Logging](https://github.com/serilog/serilog-extensions-logging) and [Serilog.Sinks.File](https://github.com/serilog/serilog-sinks-file) | Apache-2.0 |

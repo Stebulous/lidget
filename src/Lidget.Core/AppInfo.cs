@@ -10,15 +10,25 @@ public static class AppInfo
 
     public const string PackageId = "Lidget";
 
+    /// <summary>
+    /// The GitHub repository whose releases are the update feed. This is an assumption: confirm the
+    /// repository before the first public release.
+    /// </summary>
+    public const string RepositoryUrl = "https://github.com/Stebulous/lidget";
+
+    /// <summary>Overrides the update feed with a folder or URL, for example a local feed to test updates.</summary>
+    public const string UpdateFeedVariable = "LIDGET_UPDATE_FEED";
+
     /// <summary>Overrides <see cref="DataDirectory"/>, for example in tests.</summary>
     public const string DataDirectoryVariable = "LIDGET_DATA_DIR";
 
     /// <summary>
-    /// User data: settings, history, and logs. Velopack installs the app in
-    /// <c>%LOCALAPPDATA%\Lidget</c>, so user data stays in its own <c>data</c> folder there.
+    /// User data: settings, history, caches, and logs, in <c>%LOCALAPPDATA%\LidgetData</c> (plan decision D40).
+    /// Velopack installs the app in <c>%LOCALAPPDATA%\Lidget</c> and deletes that folder when it installs
+    /// or uninstalls, so user data must not be in it.
     /// </summary>
     public static string DataDirectory =>
         Environment.GetEnvironmentVariable(DataDirectoryVariable) is { Length: > 0 } custom
             ? custom
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "data");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name + "Data");
 }

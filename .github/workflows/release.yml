@@ -1,0 +1,50 @@
+name: Release
+
+# A tag such as v0.2.0 builds the Velopack release and uploads it to a draft GitHub release.
+# Publish the draft after a review. Lidget updates only from published releases.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test Lidget.sln -c Release
+
+      - name: Read the version from the tag
+        id: version
+        shell: pwsh
+        run: '"value=$($env:GITHUB_REF_NAME.TrimStart(''v''))" >> $env:GITHUB_OUTPUT'
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # Velopack makes a delta package from the previous release. The first release has none.
+      - name: Download the previous release
+        continue-on-error: true
+        run: dotnet vpk download github --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" -o artifacts/releases
+
+      - name: Pack
+        shell: pwsh
+        run: ./scripts/pack.ps1 -Version "${{ steps.version.outputs.value }}"
+
+      - name: Upload to a draft release
+        run: >-
+          dotnet vpk upload github
+          --repoUrl "${{ github.server_url }}/${{ github.repository }}"
+          --token "${{ secrets.GITHUB_TOKEN }}"
+          -o artifacts/releases
+          --releaseName "Lidget ${{ steps.version.outputs.value }}"
+          --tag "${{ github.ref_name }}"
