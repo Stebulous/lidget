@@ -2,8 +2,7 @@
 
 > Status: approved · Planned: 2026-10-22 · Repository: new project at `E:\Documents\Projects\lidget`
 
-"Lidget" is a working name.
-The final name is open (see [Assumptions to confirm](#assumptions-to-confirm)).
+The name is final: "Lidget" joins "limits" and "widget" (D42).
 
 ## Summary
 
@@ -94,6 +93,7 @@ Do not build these items in the MVP:
 | D39 | Approach | A notification window is a limit ID and its reset time. A reset time that changes by 30 minutes or less is the same window. The reset notice shows only for a window that reached a threshold. A click on a toast opens the flyout. | Sources report reset times with small differences. A reset notice after low usage is noise. | agent default |
 | D40 | Approach | User data is in `%LOCALAPPDATA%\LidgetData`, outside the Velopack install folder `%LOCALAPPDATA%\Lidget`. An uninstall keeps the user data. | The T4.1 test showed that the Velopack installer and uninstaller delete the complete install folder. | agent default |
 | D41 | Delivery | The release workflow uploads to a draft GitHub release. The maintainer publishes it after a review. The installer adds a Start menu shortcut only. | Lidget updates only from published releases, so a bad build does not reach users before the review. A taskbar widget does not need a desktop shortcut. | agent default |
+| D42 | Delivery | The final name is "Lidget", from "limits" and "widget". The package ID `Lidget` is fixed from the first release. | The repository has this name, and the name describes the app. | user |
 
 ## Constraints
 
@@ -616,15 +616,14 @@ The release stays local until the user approves publication.
 
 ## Assumptions to confirm
 
-- **Final app name.** The plan uses "Lidget". Confirm the final name before the first public release. A name change changes `AppInfo`, the Velopack package ID in `scripts/pack.ps1`, project names, and the repository name.
-- **Repository.** `AppInfo.RepositoryUrl` is `https://github.com/Stebulous/lidget`, the update feed. Confirm the repository before the first release.
+- **Final app name.** Confirmed on 2026-10-22: the name stays "Lidget" (D42).
+- **Repository.** Confirmed on 2026-10-22: `https://github.com/Stebulous/lidget` exists and is public. It is the update feed in `AppInfo.RepositoryUrl`.
 - **Claude endpoint.** The plan assumes the endpoint and refresh URL in [Claude data sources](#claude-data-sources). Confirm in T0.2, before T1.3.
 - **Codex app-server.** The plan assumes `account/rateLimits/read` gives the 5-hour and weekly windows. Confirm in T0.3, before T1.5.
 - **Toast library.** `Microsoft.Toolkit.Uwp.Notifications` works in the Debug build and in a Velopack install (T3.4 and T4.1 evidence).
 
 ## Later
 
-- Choose the final name and rename before the first public release.
 - More providers: Cursor, GitHub Copilot, Gemini or Antigravity, OpenRouter, Z.ai.
 - A direct Codex endpoint fallback for users without the Codex CLI.
 - Account switching and multiple accounts.

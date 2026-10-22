@@ -1,8 +1,8 @@
 namespace Lidget.Core;
 
 /// <summary>
-/// Product identity. "Lidget" is a working name: change it here before the first public release,
-/// because the Velopack package ID cannot change after users install the app.
+/// Product identity (plan decision D42). Do not change the package ID: installed copies
+/// update only from releases with the same Velopack package ID.
 /// </summary>
 public static class AppInfo
 {
