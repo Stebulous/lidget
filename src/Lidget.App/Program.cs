@@ -23,8 +23,8 @@ public static class Program
     }
 
     /// <summary>
-    /// Removes what Lidget added outside its install folder. Velopack deletes the install folder,
-    /// including the <c>data</c> folder, after this hook. The hook must not show UI.
+    /// Removes what Lidget added outside its install folder. Velopack deletes the install folder after
+    /// this hook. User data in <c>%LOCALAPPDATA%\LidgetData</c> stays (plan decision D40). The hook must not show UI.
     /// </summary>
     private static void CleanUpBeforeUninstall()
     {
