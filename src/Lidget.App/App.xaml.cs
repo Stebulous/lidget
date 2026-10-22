@@ -9,6 +9,7 @@ using Lidget.App.Views;
 using Lidget.Core;
 using Lidget.Core.Costs;
 using Lidget.Core.Models;
+using Lidget.Core.Notifications;
 using Lidget.Core.Providers;
 using Lidget.Core.Refresh;
 using Lidget.Core.StatusLine;
@@ -37,6 +38,7 @@ public partial class App : Application
     private HistoryStore? _history;
     private CostCache? _costCache;
     private CostTracker? _costs;
+    private ToastService? _toasts;
     private UsageViewModel? _viewModel;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
@@ -84,11 +86,24 @@ public partial class App : Application
         _history = HistoryStore.CreateDefault();
         var recorder = new HistoryRecorder(_history, () => _settings.Current, time, _loggerFactory.CreateLogger<HistoryRecorder>());
         _scheduler.SnapshotPublished += (_, snapshot) => recorder.Record(snapshot);
-        var historyViewModel = new HistoryViewModel(
-            _history,
-            time,
-            id => _providers.FirstOrDefault(p => p.Id == id)?.DisplayName ?? id);
+        var historyViewModel = new HistoryViewModel(_history, time, DisplayName);
         recorder.Recorded += (_, _) => historyViewModel.Reload();
+
+        _toasts = new ToastService(_logger);
+        _toasts.Activated += (_, _) => Dispatcher.BeginInvoke(ShowFlyout);
+        var thresholds = new ThresholdEvaluator(
+            ThresholdEvaluator.DefaultStatePath,
+            () => _settings.Current,
+            DisplayName,
+            time,
+            _loggerFactory.CreateLogger<ThresholdEvaluator>());
+        _scheduler.SnapshotPublished += (_, snapshot) =>
+        {
+            foreach (var notification in thresholds.Evaluate(snapshot))
+            {
+                _toasts.Show(notification);
+            }
+        };
 
         _costs = CreateCostTracker(time);
 
@@ -102,6 +117,7 @@ public partial class App : Application
         {
             TrayOffset = _settings.Current.WidgetTrayOffset,
         };
+        _taskbarHost.FallbackShown += (_, _) => ShowFallbackNotice();
         _viewModel.WidgetChanged += (_, _) => _taskbarHost.UpdatePosition();
         _settings.Changed += (_, s) => Dispatcher.BeginInvoke(() => OnSettingsChanged(s));
 
@@ -164,6 +180,33 @@ public partial class App : Application
         {
             _flyout?.Toggle(anchor);
         }
+    }
+
+    private void ShowFlyout()
+    {
+        if (_flyout is { IsVisible: false })
+        {
+            ToggleFlyout();
+        }
+    }
+
+    private string DisplayName(string providerId) => _providers.FirstOrDefault(p => p.Id == providerId)?.DisplayName ?? providerId;
+
+    private bool _fallbackNoticeShown;
+
+    /// <summary>Tells the user one time for each run that the widget is a floating pill (plan decision D17).</summary>
+    private void ShowFallbackNotice()
+    {
+        if (_fallbackNoticeShown)
+        {
+            return;
+        }
+
+        _fallbackNoticeShown = true;
+        _toasts?.Show(new UsageNotification(
+            "Lidget could not join the taskbar",
+            "Lidget shows your limits in a small window in the bottom-right corner of the screen.",
+            "lidget.fallback"));
     }
 
     private void ShowSettings()
@@ -272,6 +315,7 @@ public partial class App : Application
 
         _statusLineSource?.Dispose();
         _history?.Dispose();
+        _toasts?.Dispose();
         _costCache?.Dispose();
         _http?.Dispose();
         Shutdown();

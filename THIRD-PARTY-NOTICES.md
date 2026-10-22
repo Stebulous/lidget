@@ -75,5 +75,6 @@ SOFTWARE.
 | [LiveChartsCore.SkiaSharpView.WPF](https://github.com/beto-rodriguez/LiveCharts2) | MIT |
 | [SkiaSharp](https://github.com/mono/SkiaSharp) (through LiveCharts2) | MIT |
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | MIT |
+| [Microsoft.Toolkit.Uwp.Notifications](https://github.com/CommunityToolkit/WindowsCommunityToolkit) | MIT |
 | [Microsoft.Extensions.Logging](https://github.com/dotnet/runtime) | MIT |
 | [Serilog.Extensions.Logging](https://github.com/serilog/serilog-extensions-logging) and [Serilog.Sinks.File](https://github.com/serilog/serilog-sinks-file) | Apache-2.0 |

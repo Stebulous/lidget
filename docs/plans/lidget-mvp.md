@@ -91,6 +91,7 @@ Do not build these items in the MVP:
 | D36 | Experience | The flyout uses Acrylic, and the settings window uses Mica (refines D7) | Windows uses Acrylic for transient flyouts and Mica for app windows | agent default |
 | D37 | Approach | When `PATH` has the npm `codex.cmd` shim, Lidget starts the native `codex.exe` from the npm package | The shim needs `node` on `PATH` and adds a process between Lidget and the app-server | agent default |
 | D38 | Approach | `CostTracker` scans the session logs separately from the limit refresh, and `ProviderSnapshot` has no cost field | A log scan and a limit refresh have different sources, timings, and failures. Limit snapshots stay small for history and notifications. | agent default |
+| D39 | Approach | A notification window is a limit ID and its reset time. A reset time that changes by 30 minutes or less is the same window. The reset notice shows only for a window that reached a threshold. A click on a toast opens the flyout. | Sources report reset times with small differences. A reset notice after low usage is noise. | agent default |
 
 ## Constraints
 
@@ -514,9 +515,9 @@ Outcome: the flyout shows the history chart and cost tiles, and threshold notifi
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T3.1 and T3.4 after its dependencies.
 
-- [ ] **T3.4 Threshold notifications**
+- [x] **T3.4 Threshold notifications**
   - Objective: show toasts at the configured thresholds (D28) and for the embedding fallback (D17).
-  - Touches: `src/Lidget.Core/Notifications/ThresholdEvaluator.cs`, `src/Lidget.App/Services/ToastService.cs`, tests.
+  - Touches: `src/Lidget.Core/Notifications/ThresholdEvaluator.cs`, `src/Lidget.App/Services/ToastService.cs`, `src/Lidget.App/App.xaml.cs`, tests.
   - Depends on: T1.2, T2.1.
   - Acceptance:
     - Tests prove one notification for each threshold in each limit window, with the key (provider, limit ID, `ResetsAt`).
@@ -539,6 +540,7 @@ The release stays local until the user approves publication.
     2. Download updates in the background, and apply them at the next start.
     3. On a `v*` tag, the workflow runs `dotnet publish -r win-x64 --self-contained`, then `vpk pack`, then `vpk upload github`.
     4. Include `lidget-statusline.exe` in the package.
+    5. In the Velopack uninstall hook, call `ToastNotificationManagerCompat.Uninstall()`. It removes the toast registration under `HKCU\Software\Classes`.
   - Acceptance:
     - A local `vpk pack` installs Lidget.
     - A second local package with a higher version updates the installed app from a local feed.
@@ -615,7 +617,7 @@ The release stays local until the user approves publication.
 - **Final app name.** The plan uses "Lidget". Confirm the final name before T4.1. A name change before T4.1 changes `AppInfo`, project names, and the repository name.
 - **Claude endpoint.** The plan assumes the endpoint and refresh URL in [Claude data sources](#claude-data-sources). Confirm in T0.2, before T1.3.
 - **Codex app-server.** The plan assumes `account/rateLimits/read` gives the 5-hour and weekly windows. Confirm in T0.3, before T1.5.
-- **Toast library.** The plan assumes `Microsoft.Toolkit.Uwp.Notifications` works in an unpackaged .NET 10 WPF app with Velopack shortcuts. Confirm in T3.4. If it fails, use the Windows App SDK `AppNotificationManager`.
+- **Toast library.** `Microsoft.Toolkit.Uwp.Notifications` works in the unpackaged Debug build (T3.4 evidence). Confirm it again with a Velopack install in T4.1. If it fails, use the Windows App SDK `AppNotificationManager`.
 
 ## Later
 
@@ -737,3 +739,13 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Flyout: the Debug build showed Claude at 28.28 USD today, 117.34 USD for 7 days, and 353.01 USD for 30 days. Codex showed 1.47 USD, 7.61 USD, and 22.69 USD. The tiles show the label "API-equivalent estimate from local session logs".
 - Finding: GPT models have long-context rates above 272,000 prompt tokens. Above the threshold, the input rate of `gpt-6-sol` is two times higher and the output rate is 1.5 times higher.
 - Quit stopped Lidget. The `codex` processes that continued to run belong to the Codex desktop app.
+
+### 2026-10-22 — T3.4 threshold notifications (revision after `4be3218`)
+
+- Command: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test` passed 165 tests.
+- Library: `Microsoft.Toolkit.Uwp.Notifications` 7.1.3 in the unpackaged Debug build. The toast shows the name "Lidget" and a generic icon, because the app has no icon yet.
+- Threshold: Codex was at 100% of the 5-hour limit. At start, Lidget showed "Codex: Session (5h) limit reached" with the reset countdown. `data/notifications.json` recorded the threshold.
+- Restart: the next start did not show the toast again.
+- Click: a click on the toast opened the flyout.
+- Fallback: with `LIDGET_FORCE_FALLBACK=1`, Lidget showed the toast "Lidget could not join the taskbar" one time, and the pill. Quit from the pill menu stopped Lidget and its Codex app-server.
+- Open gates: the reset notice in a real limit reset, and toasts from a Velopack install (T4.3).
