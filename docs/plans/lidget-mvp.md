@@ -674,3 +674,13 @@ Run the three M0 spikes before M1, and record their results in the plan evidence
 Each task must pass its acceptance checks and `dotnet test` before you commit it.
 Use one gitmoji commit for each task on `main`.
 Do not create a GitHub remote, push, tag, or publish a release until the user asks.
+
+### 2026-10-22 — T0.4 taskbar embedding spike (revision after `85700c2`)
+
+- Environment: Windows 11 build 26200, 2560 × 1440 display at 125% scale, centered taskbar alignment. FluentFlyout was running with its own taskbar widget.
+- Taskbar children found: `TrayNotifyWnd`, `ReBarWindow32`, `Windows.UI.Composition.DesktopWindowContentBridge`, and FluentFlyout's `HwndWrapper`. FluentFlyout's window covers the full taskbar width.
+- Code: `src/Lidget.App/Shell/TaskbarHost.cs` changes the window style from `WS_POPUP` to `WS_CHILD`, calls `SetParent` into `Shell_TrayWnd`, and positions the window left of `TrayNotifyWnd` with `SetWindowPos(HWND_TOP)`.
+- Result: a transparent WPF window with `AllowsTransparency` showed the placeholder left of the tray chevron. The placeholder did not cover task buttons.
+- Explorer restart: `Stop-Process -Name explorer -Force`. Explorer restarted automatically. Lidget embedded a new window in less than 10 seconds, and its position followed the changed tray width.
+- Finding: Explorer destroys the child window with the taskbar. A hidden top-level `HwndSource` receives `TaskbarCreated`, and a 2-second timer embeds again.
+- Open gates for T2.1: 150% and 200% scale, left alignment, auto-hide, mouse input and context menus in the child window, and the fallback pill.

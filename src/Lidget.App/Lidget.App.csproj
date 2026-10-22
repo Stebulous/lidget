@@ -8,6 +8,7 @@
     <AssemblyName>Lidget</AssemblyName>
     <RootNamespace>Lidget.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
