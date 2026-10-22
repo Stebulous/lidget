@@ -550,9 +550,9 @@ The release stays local until the user approves publication.
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T4.2.
 
-- [ ] **T4.2 Documentation**
+- [x] **T4.2 Documentation**
   - Objective: write the minimum docs for users and contributors.
-  - Touches: `README.md`, `docs/qa-checklist.md`, `THIRD-PARTY-NOTICES.md`.
+  - Touches: `README.md`, `docs/qa-checklist.md`, `docs/images/`, `THIRD-PARTY-NOTICES.md`.
   - Depends on: M3.
   - The README contains these parts:
     - What Lidget does, with a screenshot.
@@ -767,3 +767,9 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Open gates for T4.3:
   - The statusline restore in the uninstall hook, with the feed on. This test changes `~/.claude/settings.json`.
   - An update from a published GitHub release.
+
+### 2026-10-22 — T4.2 documentation (revision after `b25aafe`)
+
+- Pages: `README.md`, `docs/qa-checklist.md`, and `THIRD-PARTY-NOTICES.md`. The screenshots in `docs/images/` show live data from the Debug build.
+- Check: the `repo-docs` audit script found 0 errors and 0 warnings in the changed pages.
+- Commands: `dotnet build Lidget.sln`, `dotnet test Lidget.sln`, and `./scripts/pack.ps1` ran during T4.1 and T4.2.
