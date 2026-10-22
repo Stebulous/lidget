@@ -46,6 +46,9 @@ public sealed record ProviderSnapshot(
 {
     public string? PlanName { get; init; }
 
+    /// <summary>Server-requested wait before the next request, for example from a <c>Retry-After</c> header.</summary>
+    public TimeSpan? RetryAfter { get; init; }
+
     /// <summary>The limit with the highest used share: the one that stops work first.</summary>
     public LimitWindow? TightestLimit => Limits.Count == 0 ? null : Limits.MaxBy(l => l.UsedPercent);
 
