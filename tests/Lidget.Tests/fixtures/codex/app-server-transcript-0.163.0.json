@@ -1,0 +1,162 @@
+[
+  {
+    "dir": "client",
+    "msg": {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "lidget",
+          "title": "Lidget",
+          "version": "0.1.0"
+        }
+      }
+    }
+  },
+  {
+    "dir": "server",
+    "msg": {
+      "id": 1,
+      "result": {
+        "userAgent": "lidget/0.163.0 (Windows 10.0.26200; x86_64) xterm-256color (lidget; 0.1.0)",
+        "codexHome": "C:\\Users\\example\\.codex",
+        "platformFamily": "windows",
+        "platformOs": "windows"
+      }
+    }
+  },
+  {
+    "dir": "client",
+    "msg": {
+      "method": "initialized"
+    }
+  },
+  {
+    "dir": "client",
+    "msg": {
+      "id": 2,
+      "method": "account/read",
+      "params": {
+        "refreshToken": false
+      }
+    }
+  },
+  {
+    "dir": "client",
+    "msg": {
+      "id": 3,
+      "method": "account/rateLimits/read",
+      "params": {
+        "excludeResetCreditDetails": true
+      }
+    }
+  },
+  {
+    "dir": "server",
+    "msg": {
+      "method": "remoteControl/status/changed",
+      "params": {
+        "status": "disabled",
+        "serverName": "EXAMPLE-PC",
+        "installationId": "00000000-0000-4000-8000-000000000002",
+        "environmentId": null
+      },
+      "emittedAtMs": 1792650189180
+    }
+  },
+  {
+    "dir": "server",
+    "msg": {
+      "method": "account/updated",
+      "params": {
+        "authMode": "chatgpt",
+        "planType": "plus"
+      },
+      "emittedAtMs": 1792650189629
+    }
+  },
+  {
+    "dir": "server",
+    "msg": {
+      "id": 2,
+      "result": {
+        "account": {
+          "type": "chatgpt",
+          "email": "user@example.com",
+          "planType": "plus"
+        },
+        "requiresOpenaiAuth": true,
+        "workspaceRouting": {
+          "chatgptAccountId": "00000000-0000-4000-8000-000000000001",
+          "backendOrigin": "https://chatgpt.com",
+          "accountRoutingOverride": "NO_CONSTRAINT"
+        }
+      }
+    }
+  },
+  {
+    "dir": "server",
+    "msg": {
+      "id": 3,
+      "result": {
+        "ordinaryUsageAllowed": true,
+        "rateLimits": {
+          "limitId": "codex",
+          "limitName": null,
+          "normalModelSlug": null,
+          "primary": {
+            "usedPercent": 86,
+            "windowDurationMins": 300,
+            "resetsAt": 1792663869
+          },
+          "secondary": {
+            "usedPercent": 47,
+            "windowDurationMins": 10080,
+            "resetsAt": 1793090963
+          },
+          "credits": {
+            "hasCredits": false,
+            "unlimited": false,
+            "balance": "0"
+          },
+          "individualLimit": null,
+          "spendControlReached": false,
+          "planType": "plus",
+          "rateLimitReachedType": null
+        },
+        "rateLimitsByLimitId": {
+          "codex": {
+            "limitId": "codex",
+            "limitName": null,
+            "normalModelSlug": null,
+            "primary": {
+              "usedPercent": 86,
+              "windowDurationMins": 300,
+              "resetsAt": 1792663869
+            },
+            "secondary": {
+              "usedPercent": 47,
+              "windowDurationMins": 10080,
+              "resetsAt": 1793090963
+            },
+            "credits": {
+              "hasCredits": false,
+              "unlimited": false,
+              "balance": "0"
+            },
+            "individualLimit": null,
+            "spendControlReached": false,
+            "planType": "plus",
+            "rateLimitReachedType": null
+          }
+        },
+        "rateLimitResetCredits": {
+          "availableCount": 3,
+          "credits": null
+        },
+        "accountId": "00000000-0000-4000-8000-000000000001",
+        "rateLimitUpsell": null
+      }
+    }
+  }
+]

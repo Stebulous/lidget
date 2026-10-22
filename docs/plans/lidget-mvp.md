@@ -627,8 +627,37 @@ The release stays local until the user approves publication.
 
 ## Evidence log
 
-No entries yet.
 Each entry has a date, a revision, the commands, the results, and the open gates.
+
+### 2026-10-22 — T0.2 Claude usage endpoint spike (revision `f784c92`)
+
+- Command: a temporary Node.js script outside the repository read `~/.claude/.credentials.json` and sent one `GET https://api.anthropic.com/api/oauth/usage`. The script did not refresh tokens.
+- Request headers: `Authorization: Bearer <access token>`, `Accept: application/json`, `anthropic-beta: oauth-2025-04-20`, `User-Agent: claude-cli/2.1.308 (external, cli)`.
+- Result: HTTP 200. Fixture: `tests/Lidget.Tests/fixtures/claude/usage-pro.json` (Pro plan). The response has no account identifiers.
+- The response gives each limit in two forms:
+  - Legacy keys `five_hour` and `seven_day`, each with `utilization` (0 to 100) and `resets_at` (ISO 8601).
+  - A `limits` array. Each entry has `kind` (`session`, `weekly_all`, `weekly_scoped`), `group`, `percent`, `severity`, `resets_at`, `scope`, and `is_active`.
+- OpenUsage reads the `limits` array for model-scoped weekly limits, because the legacy `seven_day_<model>` keys are now `null`. The mapper must prefer `limits` and use the legacy keys as a fallback.
+- Credentials file shape: top-level keys `claudeAiOauth` and `mcpOAuth`. `claudeAiOauth` has `accessToken`, `refreshToken`, `expiresAt` (Unix milliseconds), `refreshTokenExpiresAt`, `scopes`, `subscriptionType`, `subscriptionTypeSource`, and `rateLimitTier`.
+- Refresh, from OpenUsage `ClaudeAuthStore.swift` and `ClaudeUsageClient.swift`: `POST https://platform.claude.com/v1/oauth/token` with a JSON body. The body has `grant_type: refresh_token`, `refresh_token`, `client_id: 9d1c250a-e61b-44d9-88ed-5944d1962f5e`, and `scope: user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload`. The response has `access_token`, `refresh_token`, and `expires_in` (seconds). OpenUsage refreshes when the token expires within 5 minutes.
+- Open gates: the refresh request is not tested live. T1.3 tests it with a fake HTTP handler, and the one-week QA check tests it live.
+
+### 2026-10-22 — T0.3 Codex app-server spike (revision `f784c92`)
+
+- Codex version: `codex-cli 0.163.0`, installed through npm (`%APPDATA%\npm\codex.cmd`).
+- Command: `codex app-server generate-json-schema --out <dir>`. The relevant schema files are in `tests/Lidget.Tests/fixtures/codex/schema-0.163.0/`.
+- Command: a temporary Node.js script started `codex.cmd app-server` and exchanged messages over stdio. The sanitized transcript is `tests/Lidget.Tests/fixtures/codex/app-server-transcript-0.163.0.json`.
+- Framing: one JSON object on each line (JSONL). Messages have no `jsonrpc` field. Server notifications include `emittedAtMs`.
+- Handshake: request `initialize` with `clientInfo` (`name`, `title`, `version`), then the notification `initialized`.
+- `account/rateLimits/read` with `{ "excludeResetCreditDetails": true }` returned `rateLimits` with these fields:
+  - `primary`: `usedPercent` 86, `windowDurationMins` 300, `resetsAt` in Unix seconds.
+  - `secondary`: `usedPercent` 47, `windowDurationMins` 10080.
+  - `planType` `plus`, plus `rateLimitsByLimitId` keyed by `codex`.
+- `account/read` with `{ "refreshToken": false }` returned the auth mode and the plan. Use it to detect a missing login.
+- `account/rateLimits/updated` is a sparse update. Merge its values into the last full read.
+- The server also sends unrelated notifications, for example `remoteControl/status/changed` and `account/updated`. The client must ignore unknown methods.
+- Map windows by `windowDurationMins`: 300 is the session window, and 10080 is the weekly window.
+- Open gates: none for M1.
 
 ## Handoff brief
 
