@@ -209,6 +209,19 @@ public class CodexProviderTests
         Assert.Null(CodexLocator.Find(@"C:\does-not-exist"));
     }
 
+    [Fact]
+    public void LocatorPrefersNativeBinaryOfNpmInstall()
+    {
+        using var dir = new TempDirectory();
+        File.WriteAllText(dir.File("codex.cmd"), "@echo off");
+        var binary = dir.File(@"node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe");
+        Directory.CreateDirectory(Path.GetDirectoryName(binary)!);
+        File.WriteAllText(binary, string.Empty);
+
+        Assert.Equal(binary, CodexLocator.FindNpmBinary(dir.Path, System.Runtime.InteropServices.Architecture.X64));
+        Assert.Null(CodexLocator.FindNpmBinary(dir.Path, System.Runtime.InteropServices.Architecture.Arm64));
+    }
+
     private sealed class FakeCodexTransport(Func<string, JsonElement, JsonNode?> respond) : ICodexTransport
     {
         private static readonly Lazy<JsonArray> Transcript = new(() =>
