@@ -46,9 +46,9 @@ internal sealed class FallbackPillWindow : Window
         Content = surface;
 
         PreviewMouseLeftButtonDown += OnPreviewMouseLeftButtonDown;
-        Loaded += (_, _) => Place();
-        SizeChanged += (_, _) => Place();
-        DpiChanged += (_, _) => Dispatcher.BeginInvoke(Place, System.Windows.Threading.DispatcherPriority.Loaded);
+        Loaded += (_, _) => PlaceAfterLayout();
+        SizeChanged += (_, _) => PlaceAfterLayout();
+        DpiChanged += (_, _) => PlaceAfterLayout();
     }
 
     public event EventHandler? Clicked;
@@ -60,6 +60,12 @@ internal sealed class FallbackPillWindow : Window
 
     /// <summary>Called when the display scale or the work area changes.</summary>
     public void Reposition() => Place();
+
+    /// <summary>
+    /// WPF raises the size events before it resizes the native window, so the window rectangle
+    /// still has the previous size. Place the pill after the resize instead.
+    /// </summary>
+    private void PlaceAfterLayout() => Dispatcher.BeginInvoke(Place, System.Windows.Threading.DispatcherPriority.Loaded);
 
     /// <summary>
     /// Puts the pill in the bottom-right corner of the work area, or keeps the right edge where the
