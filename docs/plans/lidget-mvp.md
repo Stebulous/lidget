@@ -479,7 +479,7 @@ Outcome: a user can run Lidget, see the widget in the taskbar, open the flyout, 
 
 Outcome: the flyout shows the history chart and cost tiles, and threshold notifications work.
 
-- [ ] **T3.1 History store**
+- [x] **T3.1 History store**
   - Objective: keep limit history in SQLite (D26).
   - Touches: `src/Lidget.Core/Storage/HistoryStore.cs`, tests.
   - Depends on: T1.2.
