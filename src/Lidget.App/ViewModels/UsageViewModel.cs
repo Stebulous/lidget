@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Lidget.Core.Costs;
 using Lidget.Core.Models;
 using Lidget.Core.Providers;
 using Lidget.Core.Refresh;
@@ -66,13 +67,33 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>The local cost estimates, or null when cost tracking is not available.</summary>
+    public CostTracker? Costs
+    {
+        get;
+        init
+        {
+            field = value;
+            if (value is null)
+            {
+                return;
+            }
+
+            value.CostsUpdated += (_, update) => _dispatcher.BeginInvoke(() => ApplyCosts(update));
+            foreach (var (providerId, summary) in value.Latest)
+            {
+                ApplyCosts(new CostUpdate(providerId, summary));
+            }
+        }
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
         IsRefreshing = true;
         try
         {
-            await _scheduler.RefreshNowAsync();
+            await Task.WhenAll(_scheduler.RefreshNowAsync(), Costs?.ScanAsync() ?? Task.CompletedTask);
         }
         finally
         {
@@ -80,8 +101,13 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Refreshes when the flyout opens and the data is older than 60 seconds (plan decision D23).</summary>
-    public Task RefreshIfStaleAsync() => _scheduler.RefreshStaleAsync(TimeSpan.FromSeconds(60));
+    /// <summary>
+    /// Refreshes when the flyout opens and the data is older than 60 seconds (plan decision D23).
+    /// Rescans the session logs on the same rule.
+    /// </summary>
+    public Task RefreshIfStaleAsync() => Task.WhenAll(
+        _scheduler.RefreshStaleAsync(TimeSpan.FromSeconds(60)),
+        Costs?.ScanIfStaleAsync(TimeSpan.FromSeconds(60)) ?? Task.CompletedTask);
 
     [RelayCommand]
     private void OpenSettings() => SettingsRequested?.Invoke(this, EventArgs.Empty);
@@ -95,6 +121,9 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         provider?.Apply(snapshot, _settings.Current.WidgetMetric, _time.GetUtcNow());
         WidgetChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private void ApplyCosts(CostUpdate update) =>
+        Providers.FirstOrDefault(p => p.Id == update.ProviderId)?.ApplyCosts(update.Summary);
 
     private void ApplySettings(LidgetSettings settings)
     {

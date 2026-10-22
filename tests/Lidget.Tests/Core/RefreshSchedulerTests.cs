@@ -204,7 +204,7 @@ public class RefreshSchedulerTests
         private ProviderSnapshot Snapshot(double used)
         {
             var now = time.GetUtcNow();
-            return new ProviderSnapshot(id, ProviderStatus.Ok, [new LimitWindow($"{id}.session", LimitKind.Session, "Session", used, null, "test", now)], null, null, now);
+            return new ProviderSnapshot(id, ProviderStatus.Ok, [new LimitWindow($"{id}.session", LimitKind.Session, "Session", used, null, "test", now)], null, now);
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

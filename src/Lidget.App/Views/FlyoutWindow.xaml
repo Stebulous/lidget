@@ -54,6 +54,19 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
 
+        <Style x:Key="CostTile" TargetType="Border">
+            <Setter Property="Padding" Value="10,6,10,8" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="CostValue" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+
         <DataTemplate x:Key="LimitTemplate" DataType="vm:LimitViewModel">
             <Grid Margin="0,12,0,0">
                 <Grid.RowDefinitions>
@@ -99,8 +112,29 @@
 
                     <ItemsControl ItemsSource="{Binding Limits}" ItemTemplate="{StaticResource LimitTemplate}" Focusable="False" />
 
-                    <!-- Slot for the local cost tiles (T3.3). -->
-                    <ContentControl x:Name="CostSlot" Margin="0,12,0,0" Focusable="False" Visibility="Collapsed" />
+                    <StackPanel Margin="0,12,0,0" Visibility="{Binding HasCosts, Converter={StaticResource BoolToVisibility}}">
+                        <UniformGrid Columns="3">
+                            <Border Style="{StaticResource CostTile}" Margin="0,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="Today" Style="{StaticResource Caption}" />
+                                    <TextBlock Text="{Binding CostToday}" Style="{StaticResource CostValue}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CostTile}" Margin="2,0">
+                                <StackPanel>
+                                    <TextBlock Text="7 days" Style="{StaticResource Caption}" />
+                                    <TextBlock Text="{Binding Cost7Days}" Style="{StaticResource CostValue}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CostTile}" Margin="4,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="30 days" Style="{StaticResource Caption}" />
+                                    <TextBlock Text="{Binding Cost30Days}" Style="{StaticResource CostValue}" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                        <TextBlock Margin="0,6,0,0" Text="{Binding CostNote}" TextWrapping="Wrap" Style="{StaticResource Caption}" />
+                    </StackPanel>
 
                     <Border Margin="0,12,0,0" Padding="10,8" CornerRadius="4"
                             Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"

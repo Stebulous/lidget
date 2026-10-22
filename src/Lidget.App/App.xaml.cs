@@ -7,6 +7,7 @@ using Lidget.App.Shell;
 using Lidget.App.ViewModels;
 using Lidget.App.Views;
 using Lidget.Core;
+using Lidget.Core.Costs;
 using Lidget.Core.Models;
 using Lidget.Core.Providers;
 using Lidget.Core.Refresh;
@@ -34,6 +35,8 @@ public partial class App : Application
     private IUsageProvider[] _providers = [];
     private RefreshScheduler? _scheduler;
     private HistoryStore? _history;
+    private CostCache? _costCache;
+    private CostTracker? _costs;
     private UsageViewModel? _viewModel;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
@@ -87,7 +90,9 @@ public partial class App : Application
             id => _providers.FirstOrDefault(p => p.Id == id)?.DisplayName ?? id);
         recorder.Recorded += (_, _) => historyViewModel.Reload();
 
-        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time) { History = historyViewModel };
+        _costs = CreateCostTracker(time);
+
+        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time) { History = historyViewModel, Costs = _costs };
         _viewModel.SettingsRequested += (_, _) => ShowSettings();
         _viewModel.QuitRequested += (_, _) => Quit();
 
@@ -104,6 +109,31 @@ public partial class App : Application
 
         _taskbarHost.Start();
         _scheduler.Start();
+        _costs?.Start();
+    }
+
+    /// <summary>Creates the local cost estimates (plan task T3.3), or returns null when the cache or the pricing table cannot load.</summary>
+    private CostTracker? CreateCostTracker(TimeProvider time)
+    {
+        PricingTable pricing;
+        try
+        {
+            pricing = PricingTable.LoadDefault();
+            _costCache = CostCache.CreateDefault();
+        }
+        catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException or System.Text.Json.JsonException or InvalidOperationException)
+        {
+            _logger.LogWarning(ex, "Cost estimates are off: could not load the pricing table or the cost cache");
+            return null;
+        }
+
+        var loggers = _loggerFactory!;
+        ICostSource[] sources =
+        [
+            new ClaudeLogScanner(_costCache, pricing, logger: loggers.CreateLogger<ClaudeLogScanner>()),
+            new CodexLogScanner(_costCache, pricing, logger: loggers.CreateLogger<CodexLogScanner>()),
+        ];
+        return new CostTracker(sources, () => _settings!.Current, time, loggers.CreateLogger<CostTracker>());
     }
 
     private static ILoggerFactory CreateLoggerFactory()
@@ -220,6 +250,11 @@ public partial class App : Application
 
         try
         {
+            if (_costs is not null)
+            {
+                await _costs.DisposeAsync();
+            }
+
             if (_scheduler is not null)
             {
                 await _scheduler.DisposeAsync();
@@ -237,6 +272,7 @@ public partial class App : Application
 
         _statusLineSource?.Dispose();
         _history?.Dispose();
+        _costCache?.Dispose();
         _http?.Dispose();
         Shutdown();
     }

@@ -11,7 +11,7 @@ public class HistoryRecorderTests
     private ProviderSnapshot Snapshot(DateTimeOffset observedAt) =>
         new(ProviderIds.Codex, ProviderStatus.Ok,
             [new LimitWindow("codex.session", LimitKind.Session, "Session (5h)", 40, null, "app-server", observedAt)],
-            null, null, observedAt);
+            null, observedAt);
 
     [Fact]
     public void RecordsSnapshotsAndRaisesRecordedOnlyForNewRows()

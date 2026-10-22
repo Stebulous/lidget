@@ -13,7 +13,7 @@ public class HistoryStoreTests
                 new LimitWindow("claude.session", LimitKind.Session, "Session (5h)", session, observedAt.AddHours(3), "endpoint", observedAt),
                 new LimitWindow("claude.weekly", LimitKind.Weekly, "Weekly", weekly, null, "endpoint", observedAt),
             ],
-            null, null, observedAt);
+            null, observedAt);
 
     [Fact]
     public void CreatesSchemaAndReopensWithoutChanges()

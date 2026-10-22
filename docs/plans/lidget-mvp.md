@@ -90,6 +90,7 @@ Do not build these items in the MVP:
 | D35 | Delivery | Publish self-contained for `win-x64` | No .NET runtime prerequisite for users | agent default |
 | D36 | Experience | The flyout uses Acrylic, and the settings window uses Mica (refines D7) | Windows uses Acrylic for transient flyouts and Mica for app windows | agent default |
 | D37 | Approach | When `PATH` has the npm `codex.cmd` shim, Lidget starts the native `codex.exe` from the npm package | The shim needs `node` on `PATH` and adds a process between Lidget and the app-server | agent default |
+| D38 | Approach | `CostTracker` scans the session logs separately from the limit refresh, and `ProviderSnapshot` has no cost field | A log scan and a limit refresh have different sources, timings, and failures. Limit snapshots stay small for history and notifications. | agent default |
 
 ## Constraints
 
@@ -173,7 +174,7 @@ lidget/
 │  │  ├─ Providers/IUsageProvider.cs
 │  │  ├─ Refresh/RefreshScheduler.cs
 │  │  ├─ Storage/                 SettingsStore, HistoryStore (SQLite), AtomicFile
-│  │  ├─ Costs/                   PricingTable, cost aggregation
+│  │  ├─ Costs/                   PricingTable, CostCache (SQLite), CostTracker, incremental log scanner
 │  │  └─ Notifications/           ThresholdEvaluator (logic only)
 │  ├─ Lidget.Providers/
 │  │  ├─ Claude/                  ClaudeCredentialStore, ClaudeUsageClient, ClaudeUsageMapper,
@@ -208,13 +209,15 @@ public sealed record LimitWindow(
     string Source,          // "endpoint", "statusline", "app-server"
     DateTimeOffset ObservedAt);
 
-public sealed record CostSummary(decimal Today, decimal Last7Days, decimal Last30Days, string Currency);
+public sealed record CostSummary(decimal Today, decimal Last7Days, decimal Last30Days, string Currency)
+{
+    public IReadOnlyList<string> UnpricedModels { get; init; } = [];
+}
 
 public sealed record ProviderSnapshot(
     string ProviderId,      // "claude", "codex"
     ProviderStatus Status,
     IReadOnlyList<LimitWindow> Limits,
-    CostSummary? Costs,
     string? StatusMessage,  // user-facing action, for example "Run `codex login`"
     DateTimeOffset UpdatedAt);
 
@@ -236,7 +239,7 @@ Use `TimeProvider` for all time access so that tests can control the clock.
 2. Each provider returns a `ProviderSnapshot`. A failure in one provider does not stop the others.
 3. Push sources raise `SnapshotPushed` between refreshes.
 4. The scheduler publishes each snapshot to the view models, `HistoryStore`, and `ThresholdEvaluator`.
-5. Cost scanners run after each refresh and add `CostSummary` to the snapshot.
+5. `CostTracker` scans the session logs of enabled providers at the refresh interval (D38). It also scans when the flyout opens and the last scan is older than 60 seconds. It publishes one `CostSummary` for each provider to the view models.
 
 ### Claude guarded refresh (D10)
 
@@ -497,9 +500,9 @@ Outcome: the flyout shows the history chart and cost tiles, and threshold notifi
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T3.3 Local cost estimates**
+- [x] **T3.3 Local cost estimates**
   - Objective: show API-equivalent cost for Today, 7 days, and 30 days (D27).
-  - Touches: `src/Lidget.Providers/Claude/ClaudeLogScanner.cs`, `src/Lidget.Providers/Codex/CodexLogScanner.cs`, `src/Lidget.Core/Costs/`, `assets/pricing.json`, `THIRD-PARTY-NOTICES.md`, tests.
+  - Touches: `src/Lidget.Providers/Claude/ClaudeLogScanner.cs`, `src/Lidget.Providers/Codex/CodexLogScanner.cs`, `src/Lidget.Core/Costs/`, `assets/pricing.json`, `src/Lidget.App/Views/FlyoutWindow.xaml`, `THIRD-PARTY-NOTICES.md`, tests.
   - Depends on: T1.4, T1.5, T3.1.
   - Steps:
     1. Port the parsing and deduplication rules from the OpenUsage scanners.
@@ -603,7 +606,7 @@ The release stays local until the user approves publication.
 | `codex app-server` protocol changes between Codex versions | Medium / medium | Tolerant parsing, recorded tested version, `Error` status with the Codex version in the log. |
 | Codex CLI is not installed for a user who has a ChatGPT plan | Medium / low | `NotInstalled` status with an install instruction. A direct endpoint fallback is listed in [Later](#later). |
 | Unsigned installer triggers SmartScreen and stops installs | High / medium | README explains the warning. Signing is listed in [Later](#later). |
-| Session log formats change and cost estimates become wrong | Medium / low | Tolerant parsing, an "estimate" label, a count of unparsed lines in the log. |
+| Session log formats change and cost estimates become wrong | Medium / low | Tolerant parsing, an "estimate" label, and a list of unpriced models under the cost tiles. |
 | A rename after the first public release breaks automatic updates, because the Velopack package ID changes | Medium / high | Choose the final name before the first public release (D33). |
 | Explorer sends messages to the embedded widget window and waits while the Lidget UI thread is busy, so the taskbar freezes | Low / high | Keep work off the UI thread. FluentFlyout reports freezes with some shell mods and filters such messages. If QA sees a freeze, add a message filter to `TaskbarWidgetWindow` (do not copy FluentFlyout code). |
 
@@ -723,3 +726,14 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
   - Explorer restart with the M2 host.
   - 150% and 200% scale, left alignment, auto-hide, and a light taskbar.
   - The statusline toggle in an installed build.
+
+### 2026-10-22 — T3.3 local cost estimates (revision after `d6b527d`)
+
+- Source: the OpenUsage scanners `ClaudeLogUsageScanner.swift` and the Codex log scanner, and their pricing rules (MIT). `assets/pricing.json` comes from the OpenUsage LiteLLM snapshot (retrieved 2026-07-02) and the OpenUsage pricing supplement (2026-10-16).
+- Command: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test` passed 155 tests.
+- Scan time on this machine, with 218 MB of Claude Code logs:
+  - Claude: 764 ms for the first scan and 93 ms for the next scan.
+  - Codex: 93 ms for the first scan and 23 ms for the next scan.
+- Flyout: the Debug build showed Claude at 28.28 USD today, 117.34 USD for 7 days, and 353.01 USD for 30 days. Codex showed 1.47 USD, 7.61 USD, and 22.69 USD. The tiles show the label "API-equivalent estimate from local session logs".
+- Finding: GPT models have long-context rates above 272,000 prompt tokens. Above the threshold, the input rate of `gpt-6-sol` is two times higher and the output rate is 1.5 times higher.
+- Quit stopped Lidget. The `codex` processes that continued to run belong to the Codex desktop app.

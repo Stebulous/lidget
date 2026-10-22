@@ -49,6 +49,15 @@ public static class UsageFormat
             : $"{mins}m";
     }
 
+    /// <summary>A US dollar amount: "$0.00", "&lt;$0.01", "$26.19", or "$1,204" from $1,000.</summary>
+    public static string Usd(decimal amount) => amount switch
+    {
+        <= 0 => "$0.00",
+        < 0.01m => "<$0.01",
+        >= 1000 => "$" + Math.Round(amount, MidpointRounding.AwayFromZero).ToString("#,0", CultureInfo.InvariantCulture),
+        _ => "$" + amount.ToString("0.00", CultureInfo.InvariantCulture),
+    };
+
     public static string ResetText(DateTimeOffset? resetsAt, DateTimeOffset now) =>
         resetsAt is { } reset ? $"Resets in {Countdown(reset - now)}" : "Reset time unknown";
 

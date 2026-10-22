@@ -144,7 +144,7 @@ public class ClaudeStatusLineTests : IDisposable
         [
             new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", 30, null, "endpoint", Now.AddMinutes(-3)),
             new(ClaudeUsageMapper.WeeklyId, LimitKind.Weekly, "Weekly", 50, null, "endpoint", Now.AddMinutes(-3)),
-        ], null, null, Now.AddMinutes(-3));
+        ], null, Now.AddMinutes(-3));
         LimitWindow[] statusLine =
         [
             new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", 35, null, "statusline", Now),

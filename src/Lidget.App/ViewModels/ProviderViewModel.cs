@@ -60,6 +60,22 @@ public sealed partial class ProviderViewModel : ObservableObject
     [ObservableProperty]
     public partial string WidgetTooltip { get; set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial bool HasCosts { get; set; }
+
+    [ObservableProperty]
+    public partial string CostToday { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Cost7Days { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Cost30Days { get; set; } = string.Empty;
+
+    /// <summary>The caption under the cost tiles.</summary>
+    [ObservableProperty]
+    public partial string CostNote { get; set; } = string.Empty;
+
     public bool HasProblem => Status is not ProviderStatus.Ok && StatusMessage is not null;
 
     partial void OnStatusChanged(ProviderStatus value) => OnPropertyChanged(nameof(HasProblem));
@@ -102,6 +118,18 @@ public sealed partial class ProviderViewModel : ObservableObject
 
         ApplyMetric(metric);
         Tick(now);
+    }
+
+    /// <summary>Shows the local cost estimate (plan task T3.3).</summary>
+    public void ApplyCosts(CostSummary summary)
+    {
+        HasCosts = true;
+        CostToday = UsageFormat.Usd(summary.Today);
+        Cost7Days = UsageFormat.Usd(summary.Last7Days);
+        Cost30Days = UsageFormat.Usd(summary.Last30Days);
+        CostNote = summary.HasUnpricedModels
+            ? $"API-equivalent estimate. Some models are not priced: {string.Join(", ", summary.UnpricedModels)}."
+            : "API-equivalent estimate from local session logs";
     }
 
     public void ApplyMetric(WidgetMetric metric)

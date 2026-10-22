@@ -48,6 +48,18 @@ public class UsageFormatTests
     }
 
     [Theory]
+    [InlineData("0", "$0.00")]
+    [InlineData("0.004", "<$0.01")]
+    [InlineData("26.1875", "$26.19")]
+    [InlineData("999.994", "$999.99")]
+    [InlineData("1204.5", "$1,205")]
+    public void FormatsUsd(string amount, string expected)
+    {
+        Assert.Equal(expected,
+            UsageFormat.Usd(decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    [Theory]
     [InlineData(10, "just now")]
     [InlineData(5 * 60, "5 min ago")]
     [InlineData(3 * 3600, "3 h ago")]

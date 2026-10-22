@@ -30,17 +30,19 @@ public sealed record LimitWindow(
     string Source,
     DateTimeOffset ObservedAt);
 
+/// <summary>API-equivalent cost estimate from local session logs. Today and the 7 days and 30 days that end today.</summary>
 public sealed record CostSummary(decimal Today, decimal Last7Days, decimal Last30Days, string Currency)
 {
-    /// <summary>True when some log entries used models that the pricing table does not know.</summary>
-    public bool HasUnpricedModels { get; init; }
+    /// <summary>Models in the logs that the pricing table does not know. Their tokens are not in the totals.</summary>
+    public IReadOnlyList<string> UnpricedModels { get; init; } = [];
+
+    public bool HasUnpricedModels => UnpricedModels.Count > 0;
 }
 
 public sealed record ProviderSnapshot(
     string ProviderId,
     ProviderStatus Status,
     IReadOnlyList<LimitWindow> Limits,
-    CostSummary? Costs,
     string? StatusMessage,
     DateTimeOffset UpdatedAt)
 {
@@ -61,5 +63,5 @@ public sealed record ProviderSnapshot(
     };
 
     public static ProviderSnapshot Failed(string providerId, ProviderStatus status, string message, DateTimeOffset now) =>
-        new(providerId, status, [], null, message, now);
+        new(providerId, status, [], message, now);
 }

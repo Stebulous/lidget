@@ -9,4 +9,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\pricing.json" LogicalName="Lidget.pricing.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lidget.Providers" />
+    <InternalsVisibleTo Include="Lidget.Tests" />
+  </ItemGroup>
+
 </Project>

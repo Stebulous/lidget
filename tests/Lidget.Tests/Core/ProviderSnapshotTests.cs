@@ -10,7 +10,7 @@ public class ProviderSnapshotTests
         new($"test.{kind}", kind, kind.ToString(), used, null, "test", Now);
 
     private static ProviderSnapshot Snapshot(params LimitWindow[] limits) =>
-        new("test", ProviderStatus.Ok, limits, null, null, Now);
+        new("test", ProviderStatus.Ok, limits, null, Now);
 
     [Fact]
     public void TightestLimitIsHighestUsedPercent()

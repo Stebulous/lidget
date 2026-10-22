@@ -167,7 +167,7 @@ public sealed class ClaudeProvider : IUsageProvider
             return Failed(ProviderStatus.Error, "Claude returned no usage limits. The response format may have changed.");
         }
 
-        return new ProviderSnapshot(Id, ProviderStatus.Ok, limits, null, null, now)
+        return new ProviderSnapshot(Id, ProviderStatus.Ok, limits, null, now)
         {
             PlanName = ClaudeUsageMapper.FormatPlan(oauth.SubscriptionType, oauth.RateLimitTier),
         };

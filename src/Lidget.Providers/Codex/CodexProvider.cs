@@ -220,7 +220,7 @@ public sealed class CodexProvider : IUsageProvider
             return Failed(ProviderStatus.Error, "Codex returned no usage limits.");
         }
 
-        return new ProviderSnapshot(Id, ProviderStatus.Ok, limits, null, null, now)
+        return new ProviderSnapshot(Id, ProviderStatus.Ok, limits, null, now)
         {
             PlanName = CodexRateLimitMapper.FormatPlan(document.RootElement),
         };
