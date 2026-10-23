@@ -151,7 +151,7 @@ public class ClaudeStatusLineTests : IDisposable
             new(ClaudeUsageMapper.WeeklyId, LimitKind.Weekly, "Weekly", 49, null, "statusline", Now.AddMinutes(-10)),
         ];
 
-        var combined = ClaudeProvider.Combine(endpoint, statusLine);
+        var combined = ClaudeProvider.Combine(endpoint, statusLine, Now);
 
         Assert.Equal(ProviderStatus.Ok, combined.Status);
         Assert.Equal([35d, 50d], combined.Limits.Select(l => l.UsedPercent));
@@ -159,16 +159,30 @@ public class ClaudeStatusLineTests : IDisposable
     }
 
     [Fact]
-    public void CombineWithFailedEndpointIsStale()
+    public void CombineWithFailedEndpointAndOldReadingsIsStale()
     {
         var failed = ProviderSnapshot.Failed(ProviderIds.Claude, ProviderStatus.Error, "HTTP 500", Now);
-        LimitWindow[] statusLine = [new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", 35, null, "statusline", Now.AddMinutes(-2))];
+        LimitWindow[] statusLine = [new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", 35, null, "statusline", Now.AddMinutes(-30))];
 
-        var combined = ClaudeProvider.Combine(failed, statusLine);
+        var combined = ClaudeProvider.Combine(failed, statusLine, Now);
 
         Assert.Equal(ProviderStatus.Stale, combined.Status);
         Assert.Single(combined.Limits);
         Assert.Equal("HTTP 500", combined.StatusMessage);
+    }
+
+    [Fact]
+    public void CombineWithFailedEndpointAndCurrentReadingsIsOk()
+    {
+        var limited = ProviderSnapshot.Failed(ProviderIds.Claude, ProviderStatus.RateLimited, "Anthropic is limiting usage requests.", Now) with { RetryAfter = TimeSpan.FromMinutes(50) };
+        LimitWindow[] statusLine = [new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", 35, null, "statusline", Now.AddMinutes(-2))];
+
+        var combined = ClaudeProvider.Combine(limited, statusLine, Now);
+
+        Assert.Equal(ProviderStatus.Ok, combined.Status);
+        Assert.Null(combined.StatusMessage);
+        Assert.Null(combined.RetryAfter);
+        Assert.Equal(Now.AddMinutes(-2), combined.UpdatedAt);
     }
 
     [Fact]

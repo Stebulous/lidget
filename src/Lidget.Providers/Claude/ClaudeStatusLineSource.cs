@@ -8,7 +8,7 @@ namespace Lidget.Providers.Claude;
 /// Reads the limit readings that <c>lidget-statusline.exe</c> records from Claude Code, and reports
 /// new readings as the file changes.
 /// </summary>
-public sealed class ClaudeStatusLineSource : IDisposable
+public sealed class ClaudeStatusLineSource : IClaudeLimitFeed, IDisposable
 {
     private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(200);
 
@@ -23,7 +23,6 @@ public sealed class ClaudeStatusLineSource : IDisposable
         _time = time;
     }
 
-    /// <summary>Raised on a background thread with the current readings.</summary>
     public event Action<IReadOnlyList<LimitWindow>>? ReadingsChanged;
 
     public void StartWatching()
@@ -48,7 +47,6 @@ public sealed class ClaudeStatusLineSource : IDisposable
 
     private void OnFileEvent(object sender, FileSystemEventArgs e) => _debounceTimer?.Change(Debounce, Timeout.InfiniteTimeSpan);
 
-    /// <summary>Reads the recorded windows. Windows whose reset time has passed are left out.</summary>
     public IReadOnlyList<LimitWindow> Read()
     {
         string text;

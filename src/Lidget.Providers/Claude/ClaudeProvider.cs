@@ -9,31 +9,39 @@ namespace Lidget.Providers.Claude;
 
 public sealed class ClaudeProvider : IUsageProvider
 {
+    /// <summary>Feed readings newer than this are current. Lidget then shows them without an endpoint request.</summary>
+    public static readonly TimeSpan FeedFreshness = TimeSpan.FromMinutes(10);
+
+    /// <summary>While feed readings are current, Lidget still requests the endpoint at this interval, for limits that the feeds do not report.</summary>
+    public static readonly TimeSpan EndpointMaxAge = TimeSpan.FromHours(1);
+
+    /// <summary>The wait after HTTP 429 when the response has no <c>Retry-After</c> header.</summary>
+    public static readonly TimeSpan DefaultRateLimitWait = TimeSpan.FromMinutes(15);
+
     private readonly ClaudeCredentialStore _credentials;
     private readonly ClaudeUsageClient _client;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
-    private readonly ClaudeStatusLineSource? _statusLine;
-    private readonly Func<bool> _statusLineEnabled;
+    private readonly IReadOnlyList<ClaudeLimitFeed> _feeds;
     private ProviderSnapshot? _lastEndpoint;
+    private ProviderSnapshot? _lastGoodEndpoint;
+    private DateTimeOffset? _endpointRetryAt;
 
     public ClaudeProvider(
         ClaudeCredentialStore credentials,
         ClaudeUsageClient client,
         TimeProvider time,
         ILogger<ClaudeProvider>? logger = null,
-        ClaudeStatusLineSource? statusLine = null,
-        Func<bool>? statusLineEnabled = null)
+        IEnumerable<ClaudeLimitFeed>? feeds = null)
     {
         _credentials = credentials;
         _client = client;
         _time = time;
         _logger = logger ?? (ILogger)NullLogger.Instance;
-        _statusLine = statusLine;
-        _statusLineEnabled = statusLineEnabled ?? (() => statusLine is not null);
-        if (_statusLine is not null)
+        _feeds = feeds?.ToArray() ?? [];
+        foreach (var feed in _feeds)
         {
-            _statusLine.ReadingsChanged += OnStatusLineReadings;
+            feed.Source.ReadingsChanged += OnFeedReadings;
         }
     }
 
@@ -45,38 +53,108 @@ public sealed class ClaudeProvider : IUsageProvider
 
     public async Task<ProviderSnapshot> RefreshAsync(CancellationToken ct)
     {
-        var endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
-        _lastEndpoint = endpoint;
-        return Combine(endpoint, StatusLineReadings());
+        var readings = FeedReadings();
+        var now = _time.GetUtcNow();
+        ProviderSnapshot endpoint;
+        if (_lastEndpoint is { } last && SkipEndpoint(readings, now))
+        {
+            endpoint = last.Status == ProviderStatus.RateLimited && _endpointRetryAt is { } retry
+                ? last with { RetryAfter = retry > now ? retry - now : TimeSpan.Zero }
+                : last;
+        }
+        else
+        {
+            endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
+            RecordEndpoint(endpoint, now);
+        }
+
+        return Finish(Combine(endpoint, readings, now));
     }
 
-    private IReadOnlyList<LimitWindow> StatusLineReadings() =>
-        _statusLine is not null && _statusLineEnabled() ? _statusLine.Read() : [];
-
-    private void OnStatusLineReadings(IReadOnlyList<LimitWindow> readings)
+    /// <summary>
+    /// Anthropic rate-limits the usage endpoint. Skip the request while the server asks Lidget to wait,
+    /// and while current feed readings make it unnecessary.
+    /// </summary>
+    private bool SkipEndpoint(IReadOnlyList<LimitWindow> readings, DateTimeOffset now)
     {
-        if (!_statusLineEnabled() || readings.Count == 0)
+        if (_endpointRetryAt is { } retry && now < retry)
+        {
+            return true;
+        }
+
+        return _lastGoodEndpoint is { } good
+            && now - good.UpdatedAt < EndpointMaxAge
+            && IsCurrent(readings, LimitKind.Session, now)
+            && IsCurrent(readings, LimitKind.Weekly, now);
+    }
+
+    private void RecordEndpoint(ProviderSnapshot endpoint, DateTimeOffset now)
+    {
+        _lastEndpoint = endpoint;
+        if (endpoint.Status == ProviderStatus.Ok)
+        {
+            _lastGoodEndpoint = endpoint;
+            _endpointRetryAt = null;
+        }
+        else if (endpoint.Status == ProviderStatus.RateLimited)
+        {
+            _endpointRetryAt = now + (endpoint.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : DefaultRateLimitWait);
+            _logger.LogInformation("Anthropic rate-limited the usage request. The next request is after {RetryAt:o}", _endpointRetryAt);
+        }
+    }
+
+    private static bool IsCurrent(IReadOnlyList<LimitWindow> readings, LimitKind kind, DateTimeOffset now) =>
+        readings.Any(l => l.Kind == kind && now - l.ObservedAt <= FeedFreshness);
+
+    private IReadOnlyList<LimitWindow> FeedReadings()
+    {
+        var readings = new List<LimitWindow>();
+        foreach (var feed in _feeds)
+        {
+            if (feed.IsEnabled())
+            {
+                readings.AddRange(feed.Source.Read());
+            }
+        }
+
+        return readings;
+    }
+
+    private void OnFeedReadings(IReadOnlyList<LimitWindow> changed)
+    {
+        if (changed.Count == 0 || !_feeds.Any(f => f.IsEnabled()))
+        {
+            return;
+        }
+
+        var readings = FeedReadings();
+        if (readings.Count == 0)
         {
             return;
         }
 
         var endpoint = _lastEndpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
-        Push(Combine(endpoint, readings));
+        Push(Finish(Combine(endpoint, readings, _time.GetUtcNow())));
     }
 
+    /// <summary>Keeps the plan name of the last endpoint result when the result comes from the feeds.</summary>
+    private ProviderSnapshot Finish(ProviderSnapshot snapshot) =>
+        snapshot.PlanName is null && (_lastEndpoint?.PlanName ?? _lastGoodEndpoint?.PlanName) is { } plan ? snapshot with { PlanName = plan } : snapshot;
+
     /// <summary>
-    /// Combines endpoint and statusline readings: for each limit, the newer reading wins. If the endpoint
-    /// failed, statusline readings keep the widget current, with the status <see cref="ProviderStatus.Stale"/>.
+    /// Combines endpoint and feed readings: for each limit, the newer reading wins. If the endpoint failed,
+    /// current feed readings keep the status <see cref="ProviderStatus.Ok"/>. Older feed readings keep the
+    /// widget filled, with the status <see cref="ProviderStatus.Stale"/> and the endpoint message.
     /// </summary>
-    internal static ProviderSnapshot Combine(ProviderSnapshot endpoint, IReadOnlyList<LimitWindow> statusLine)
+    internal static ProviderSnapshot Combine(ProviderSnapshot endpoint, IReadOnlyList<LimitWindow> feeds, DateTimeOffset now)
     {
-        if (statusLine.Count == 0)
+        if (feeds.Count == 0)
         {
             return endpoint;
         }
 
         var merged = endpoint.Limits.ToDictionary(l => l.Id);
-        foreach (var reading in statusLine)
+        foreach (var reading in feeds)
         {
             if (!merged.TryGetValue(reading.Id, out var existing) || reading.ObservedAt > existing.ObservedAt)
             {
@@ -88,8 +166,13 @@ public sealed class ClaudeProvider : IUsageProvider
         var limits = merged.Values.OrderBy(l => order[l.Kind]).ThenBy(l => l.Id, StringComparer.Ordinal).ToArray();
         var newest = limits.Max(l => l.ObservedAt);
 
-        return endpoint.Status == ProviderStatus.Ok
-            ? endpoint with { Limits = limits, UpdatedAt = newest > endpoint.UpdatedAt ? newest : endpoint.UpdatedAt }
+        if (endpoint.Status == ProviderStatus.Ok)
+        {
+            return endpoint with { Limits = limits, UpdatedAt = newest > endpoint.UpdatedAt ? newest : endpoint.UpdatedAt };
+        }
+
+        return limits.All(l => now - l.ObservedAt <= FeedFreshness)
+            ? endpoint with { Status = ProviderStatus.Ok, Limits = limits, StatusMessage = null, RetryAfter = null, UpdatedAt = newest }
             : endpoint with { Status = ProviderStatus.Stale, Limits = limits, UpdatedAt = newest };
     }
 
@@ -116,7 +199,11 @@ public sealed class ClaudeProvider : IUsageProvider
                 response = await _client.GetUsageAsync(credentials.OAuth.AccessToken, ct).ConfigureAwait(false);
             }
 
-            return MapResponse(response, credentials.OAuth);
+            // The plan comes from the login, so a failed request still shows it.
+            var snapshot = MapResponse(response, credentials.OAuth);
+            return snapshot.PlanName is null
+                ? snapshot with { PlanName = ClaudeUsageMapper.FormatPlan(credentials.OAuth.SubscriptionType, credentials.OAuth.RateLimitTier) }
+                : snapshot;
         }
         catch (HttpRequestException ex)
         {
@@ -190,9 +277,9 @@ public sealed class ClaudeProvider : IUsageProvider
 
     public ValueTask DisposeAsync()
     {
-        if (_statusLine is not null)
+        foreach (var feed in _feeds)
         {
-            _statusLine.ReadingsChanged -= OnStatusLineReadings;
+            feed.Source.ReadingsChanged -= OnFeedReadings;
         }
 
         return ValueTask.CompletedTask;

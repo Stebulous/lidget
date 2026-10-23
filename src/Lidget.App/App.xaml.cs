@@ -33,6 +33,7 @@ public partial class App : Application
     private HttpClient? _http;
     private SettingsStore? _settings;
     private ClaudeStatusLineSource? _statusLineSource;
+    private ClaudeT3CodeSource? _t3CodeSource;
     private IUsageProvider[] _providers = [];
     private RefreshScheduler? _scheduler;
     private HistoryStore? _history;
@@ -72,13 +73,21 @@ public partial class App : Application
 
         _statusLineSource = new ClaudeStatusLineSource(AppInfo.DataDirectory, time);
         _statusLineSource.StartWatching();
+        _t3CodeSource = new ClaudeT3CodeSource(ClaudeT3CodeSource.DefaultDirectory, time);
+        if (_settings.Current.ClaudeT3CodeFeed)
+        {
+            _t3CodeSource.StartWatching();
+        }
+
         var claude = new ClaudeProvider(
             new ClaudeCredentialStore(_http, time, _loggerFactory.CreateLogger<ClaudeCredentialStore>()),
             new ClaudeUsageClient(_http, time),
             time,
             _loggerFactory.CreateLogger<ClaudeProvider>(),
-            _statusLineSource,
-            () => _settings.Current.ClaudeStatusLineFeed);
+            [
+                new ClaudeLimitFeed(_statusLineSource, () => _settings.Current.ClaudeStatusLineFeed),
+                new ClaudeLimitFeed(_t3CodeSource, () => _settings.Current.ClaudeT3CodeFeed),
+            ]);
         _providers = [claude, CodexProvider.CreateDefault(time, _loggerFactory)];
 
         _scheduler = new RefreshScheduler(_providers, () => _settings.Current, time, _loggerFactory.CreateLogger<RefreshScheduler>());
@@ -248,6 +257,18 @@ public partial class App : Application
             SyncStartupRegistration(settings.StartWithWindows, onlyIfChanged: false);
         }
 
+        if (_appliedSettings?.ClaudeT3CodeFeed != settings.ClaudeT3CodeFeed)
+        {
+            if (settings.ClaudeT3CodeFeed)
+            {
+                _t3CodeSource?.StartWatching();
+            }
+            else
+            {
+                _t3CodeSource?.StopWatching();
+            }
+        }
+
         _appliedSettings = settings;
     }
 
@@ -323,6 +344,7 @@ public partial class App : Application
         }
 
         _statusLineSource?.Dispose();
+        _t3CodeSource?.Dispose();
         _history?.Dispose();
         _toasts?.Dispose();
         _costCache?.Dispose();

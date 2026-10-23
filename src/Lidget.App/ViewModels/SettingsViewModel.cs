@@ -90,6 +90,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial bool ClaudeStatusLineFeed { get; set; }
 
     [ObservableProperty]
+    public partial bool ClaudeT3CodeFeed { get; set; }
+
+    [ObservableProperty]
     public partial string? StatusLineError { get; set; }
 
     private void Load()
@@ -107,6 +110,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         HistoryRetentionDays = s.HistoryRetentionDays;
         WidgetTrayOffset = s.WidgetTrayOffset;
         ClaudeStatusLineFeed = s.ClaudeStatusLineFeed;
+        ClaudeT3CodeFeed = s.ClaudeT3CodeFeed;
         _loading = false;
     }
 
@@ -166,6 +170,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ThresholdsError = null;
         Save(s => s with { NotificationThresholds = thresholds });
     }
+
+    partial void OnClaudeT3CodeFeedChanged(bool value) => Save(s => s with { ClaudeT3CodeFeed = value });
 
     partial void OnClaudeStatusLineFeedChanged(bool value)
     {

@@ -120,11 +120,11 @@
                     <ui:ToggleSwitch AutomationProperties.Name="Notify when a limit resets" IsChecked="{Binding NotifyOnReset}" />
                 </ui:CardControl>
 
-                <TextBlock Text="Claude Code statusline feed" Style="{StaticResource SectionHeader}" />
+                <TextBlock Text="Claude readings while you work" Style="{StaticResource SectionHeader}" />
                 <ui:CardControl Icon="{ui:SymbolIcon WindowConsole20}">
                     <ui:CardControl.Header>
                         <StackPanel>
-                            <TextBlock Text="Read limits from Claude Code while you work" />
+                            <TextBlock Text="Read limits from the Claude Code statusline" />
                             <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        Text="Lidget wraps your statusline command and keeps its output. Claude Code hides most footer key hints when a statusline is set. Project statusline settings override this one." />
                         </StackPanel>
@@ -133,6 +133,16 @@
                 </ui:CardControl>
                 <TextBlock Text="{Binding StatusLineError}" Style="{StaticResource ErrorText}"
                            Visibility="{Binding StatusLineError, Converter={StaticResource NullToCollapsed}}" />
+                <ui:CardControl Icon="{ui:SymbolIcon Chat20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Read limits from T3 Code" />
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="T3 Code logs the Claude limits after each response. Lidget reads only those entries. Claude Code does not run the statusline in T3 Code." />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch AutomationProperties.Name="Read limits from T3 Code" IsChecked="{Binding ClaudeT3CodeFeed}" />
+                </ui:CardControl>
 
                 <TextBlock Text="General" Style="{StaticResource SectionHeader}" />
                 <ui:CardControl Header="Start with Windows" Icon="{ui:SymbolIcon Power20}">

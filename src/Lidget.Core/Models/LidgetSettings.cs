@@ -44,6 +44,9 @@ public sealed record LidgetSettings
     /// <summary>Whether Lidget wraps the Claude Code statusline command to receive limit readings.</summary>
     public bool ClaudeStatusLineFeed { get; init; }
 
+    /// <summary>Whether Lidget reads the Claude rate-limit events that T3 Code writes to its provider logs.</summary>
+    public bool ClaudeT3CodeFeed { get; init; } = true;
+
     /// <summary>Distance between the widget and the system tray, in device-independent pixels.</summary>
     public double WidgetTrayOffset { get; init; } = 4;
 

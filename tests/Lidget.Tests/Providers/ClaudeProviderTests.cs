@@ -30,10 +30,43 @@ public class ClaudeProviderTests : IDisposable
         File.WriteAllText(_dir.File(".credentials.json"), document.ToJsonString());
     }
 
-    private ClaudeProvider CreateProvider(FakeHttpHandler handler)
+    private ClaudeProvider CreateProvider(FakeHttpHandler handler, IClaudeLimitFeed? feed = null)
     {
         var http = new HttpClient(handler);
-        return new ClaudeProvider(new ClaudeCredentialStore(http, _time, claudeHome: _dir.Path), new ClaudeUsageClient(http, _time), _time);
+        return new ClaudeProvider(
+            new ClaudeCredentialStore(http, _time, claudeHome: _dir.Path),
+            new ClaudeUsageClient(http, _time),
+            _time,
+            feeds: feed is null ? null : [new ClaudeLimitFeed(feed, () => true)]);
+    }
+
+    private sealed class FakeFeed : IClaudeLimitFeed
+    {
+        public List<LimitWindow> Readings { get; } = [];
+
+        public event Action<IReadOnlyList<LimitWindow>>? ReadingsChanged;
+
+        public IReadOnlyList<LimitWindow> Read() => Readings;
+
+        public void Raise() => ReadingsChanged?.Invoke(Readings);
+    }
+
+    private void SetFeed(FakeFeed feed, double session, double weekly)
+    {
+        feed.Readings.Clear();
+        feed.Readings.Add(new(ClaudeUsageMapper.SessionId, LimitKind.Session, "Session (5h)", session, Now.AddHours(2), "t3code", _time.GetUtcNow()));
+        feed.Readings.Add(new(ClaudeUsageMapper.WeeklyId, LimitKind.Weekly, "Weekly", weekly, Now.AddDays(3), "t3code", _time.GetUtcNow()));
+    }
+
+    private static HttpResponseMessage TooManyRequests(TimeSpan? retryAfter)
+    {
+        var response = FakeHttpHandler.Json(HttpStatusCode.TooManyRequests, "{}");
+        if (retryAfter is { } wait)
+        {
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(wait);
+        }
+
+        return response;
     }
 
     private static bool IsUsage(HttpRequestMessage request) => request.RequestUri!.AbsolutePath == "/api/oauth/usage";
@@ -140,5 +173,109 @@ public class ClaudeProviderTests : IDisposable
         var snapshot = await CreateProvider(handler).RefreshAsync(CancellationToken.None);
 
         Assert.Equal(ProviderStatus.Error, snapshot.Status);
+    }
+
+    [Fact]
+    public async Task CurrentFeedReadingsSkipTheEndpoint()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var feed = new FakeFeed();
+        var provider = CreateProvider(handler, feed);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(5));
+        SetFeed(feed, 40, 60);
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal("Pro", snapshot.PlanName);
+        Assert.Equal(40, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+
+        // Old feed readings do not stop the next request.
+        _time.Advance(ClaudeProvider.FeedFreshness + TimeSpan.FromMinutes(1));
+        await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task TheEndpointIsRequestedHourlyEvenWithCurrentFeedReadings()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var feed = new FakeFeed();
+        var provider = CreateProvider(handler, feed);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(ClaudeProvider.EndpointMaxAge);
+        SetFeed(feed, 40, 60);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RateLimitWithCurrentFeedReadingsIsOkAndWaitsForRetryAfter()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => TooManyRequests(TimeSpan.FromMinutes(50)));
+        var feed = new FakeFeed();
+        SetFeed(feed, 12, 1);
+        var provider = CreateProvider(handler, feed);
+
+        var first = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, first.Status);
+        Assert.Null(first.StatusMessage);
+        Assert.Equal("Pro", first.PlanName);
+
+        // Inside the Retry-After time, no request goes out, even when the feed readings are old.
+        _time.Advance(TimeSpan.FromMinutes(30));
+        var second = await provider.RefreshAsync(CancellationToken.None);
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Stale, second.Status);
+        Assert.Contains("limiting", second.StatusMessage);
+
+        _time.Advance(TimeSpan.FromMinutes(21));
+        await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RateLimitWithoutFeedsKeepsTheRemainingWait()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => TooManyRequests(retryAfter: null));
+        var provider = CreateProvider(handler);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(5));
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.RateLimited, snapshot.Status);
+        Assert.Equal(ClaudeProvider.DefaultRateLimitWait - TimeSpan.FromMinutes(5), snapshot.RetryAfter);
+    }
+
+    [Fact]
+    public async Task FeedReadingsArePushedWithThePlanName()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var feed = new FakeFeed();
+        var provider = CreateProvider(handler, feed);
+        await provider.RefreshAsync(CancellationToken.None);
+        ProviderSnapshot? pushed = null;
+        provider.SnapshotPushed += (_, s) => pushed = s;
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        SetFeed(feed, 55, 70);
+        feed.Raise();
+
+        Assert.NotNull(pushed);
+        Assert.Equal(ProviderStatus.Ok, pushed.Status);
+        Assert.Equal("Pro", pushed.PlanName);
+        Assert.Equal(55, pushed.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
     }
 }
