@@ -11,8 +11,9 @@ public sealed partial class LimitViewModel(string id) : ObservableObject
     [ObservableProperty]
     public partial string Label { get; set; } = string.Empty;
 
+    /// <summary>The bar length, from 0 to 100: the used share or the share that is left.</summary>
     [ObservableProperty]
-    public partial double UsedPercent { get; set; }
+    public partial double BarPercent { get; set; }
 
     [ObservableProperty]
     public partial string PercentText { get; set; } = string.Empty;
@@ -28,12 +29,12 @@ public sealed partial class LimitViewModel(string id) : ObservableObject
 
     public DateTimeOffset? ResetsAt { get; private set; }
 
-    public void Apply(LimitWindow window, DateTimeOffset now)
+    public void Apply(LimitWindow window, UsageDisplay display, DateTimeOffset now)
     {
         Label = window.Label;
         Kind = window.Kind;
-        UsedPercent = Math.Clamp(window.UsedPercent, 0, 100);
-        PercentText = UsageFormat.Percent(window.UsedPercent);
+        BarPercent = UsageFormat.DisplayPercent(window.UsedPercent, display);
+        PercentText = UsageFormat.LimitText(window.UsedPercent, display);
         Severity = UsageFormat.Severity(window.UsedPercent);
         ResetsAt = window.ResetsAt;
         Tick(now);

@@ -14,6 +14,8 @@ namespace Lidget.App.ViewModels;
 
 public sealed record MetricOption(WidgetMetric Value, string Label);
 
+public sealed record DisplayOption(UsageDisplay Value, string Label);
+
 /// <summary>Edits <see cref="LidgetSettings"/>. Each change saves and applies at once.</summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -39,6 +41,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         new(WidgetMetric.Weekly, "Weekly limit"),
     ];
 
+    public IReadOnlyList<DisplayOption> DisplayOptions { get; } =
+    [
+        new(UsageDisplay.Remaining, "Remaining, for example 88% left"),
+        new(UsageDisplay.Used, "Used, for example 12% used"),
+    ];
+
     public string Version { get; } = typeof(SettingsViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public string DataDirectory => AppInfo.DataDirectory;
@@ -53,6 +61,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial MetricOption? SelectedMetric { get; set; }
+
+    [ObservableProperty]
+    public partial DisplayOption? SelectedDisplay { get; set; }
 
     [ObservableProperty]
     public partial double RefreshIntervalMinutes { get; set; }
@@ -88,6 +99,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ClaudeEnabled = s.ClaudeEnabled;
         CodexEnabled = s.CodexEnabled;
         SelectedMetric = MetricOptions.First(o => o.Value == s.WidgetMetric);
+        SelectedDisplay = DisplayOptions.First(o => o.Value == s.UsageDisplay);
         RefreshIntervalMinutes = s.RefreshIntervalMinutes;
         ThresholdsText = string.Join(", ", s.NotificationThresholds);
         NotifyOnReset = s.NotifyOnReset;
@@ -115,6 +127,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (value is not null)
         {
             Save(s => s with { WidgetMetric = value.Value });
+        }
+    }
+
+    partial void OnSelectedDisplayChanged(DisplayOption? value)
+    {
+        if (value is not null)
+        {
+            Save(s => s with { UsageDisplay = value.Value });
         }
     }
 

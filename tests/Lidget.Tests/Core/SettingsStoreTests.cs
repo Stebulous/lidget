@@ -16,6 +16,7 @@ public class SettingsStoreTests
         Assert.True(settings.CodexEnabled);
         Assert.Equal(5, settings.RefreshIntervalMinutes);
         Assert.Equal(WidgetMetric.Tightest, settings.WidgetMetric);
+        Assert.Equal(UsageDisplay.Remaining, settings.UsageDisplay);
         Assert.Equal([80, 95], settings.NotificationThresholds);
         Assert.True(settings.StartWithWindows);
         Assert.Equal(90, settings.HistoryRetentionDays);
@@ -35,6 +36,7 @@ public class SettingsStoreTests
             CodexEnabled = false,
             RefreshIntervalMinutes = 10,
             WidgetMetric = WidgetMetric.Weekly,
+            UsageDisplay = UsageDisplay.Used,
             NotificationThresholds = [50, 90],
             ClaudeStatusLineFeed = true,
         });
@@ -43,9 +45,11 @@ public class SettingsStoreTests
         Assert.False(reloaded.CodexEnabled);
         Assert.Equal(10, reloaded.RefreshIntervalMinutes);
         Assert.Equal(WidgetMetric.Weekly, reloaded.WidgetMetric);
+        Assert.Equal(UsageDisplay.Used, reloaded.UsageDisplay);
         Assert.Equal([50, 90], reloaded.NotificationThresholds);
         Assert.True(reloaded.ClaudeStatusLineFeed);
         Assert.Contains("\"widgetMetric\": \"weekly\"", File.ReadAllText(path));
+        Assert.Contains("\"usageDisplay\": \"used\"", File.ReadAllText(path));
     }
 
     [Fact]

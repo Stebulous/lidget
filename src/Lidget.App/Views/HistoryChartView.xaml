@@ -42,6 +42,8 @@
             <DockPanel LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Text="History" FontSize="14" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <TextBlock DockPanel.Dock="Left" Margin="8,1,0,0" VerticalAlignment="Center" Text="{Binding ValueCaption}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <RadioButton Style="{StaticResource RangeButton}" Content="24 h" GroupName="HistoryRange"
                                  AutomationProperties.Name="Last 24 hours" IsChecked="True" />

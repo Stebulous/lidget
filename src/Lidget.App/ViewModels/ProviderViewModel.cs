@@ -10,6 +10,8 @@ namespace Lidget.App.ViewModels;
 public sealed partial class ProviderViewModel : ObservableObject
 {
     private ProviderSnapshot? _snapshot;
+    private WidgetMetric _metric;
+    private UsageDisplay _display;
 
     public ProviderViewModel(string id, string displayName)
     {
@@ -82,7 +84,7 @@ public sealed partial class ProviderViewModel : ObservableObject
 
     partial void OnStatusMessageChanged(string? value) => OnPropertyChanged(nameof(HasProblem));
 
-    public void Apply(ProviderSnapshot snapshot, WidgetMetric metric, DateTimeOffset now)
+    public void Apply(ProviderSnapshot snapshot, DateTimeOffset now)
     {
         _snapshot = snapshot;
         Status = snapshot.Status;
@@ -108,7 +110,7 @@ public sealed partial class ProviderViewModel : ObservableObject
                 }
             }
 
-            row.Apply(window, now);
+            row.Apply(window, _display, now);
         }
 
         while (Limits.Count > snapshot.Limits.Count)
@@ -116,7 +118,7 @@ public sealed partial class ProviderViewModel : ObservableObject
             Limits.RemoveAt(Limits.Count - 1);
         }
 
-        ApplyMetric(metric);
+        UpdateWidget();
         Tick(now);
     }
 
@@ -132,9 +134,24 @@ public sealed partial class ProviderViewModel : ObservableObject
             : "API-equivalent estimate from local session logs";
     }
 
-    public void ApplyMetric(WidgetMetric metric)
+    /// <summary>Applies the widget metric and the display mode, and shows the current data with them.</summary>
+    public void ApplySettings(WidgetMetric metric, UsageDisplay display, DateTimeOffset now)
     {
-        var selected = _snapshot?.SelectLimit(metric);
+        _metric = metric;
+        _display = display;
+        if (_snapshot is { } snapshot)
+        {
+            Apply(snapshot, now);
+        }
+        else
+        {
+            UpdateWidget();
+        }
+    }
+
+    private void UpdateWidget()
+    {
+        var selected = _snapshot?.SelectLimit(_metric);
         if (selected is null)
         {
             WidgetPercent = 0;
@@ -143,8 +160,8 @@ public sealed partial class ProviderViewModel : ObservableObject
             return;
         }
 
-        WidgetPercent = Math.Clamp(selected.UsedPercent, 0, 100);
-        WidgetText = UsageFormat.Percent(selected.UsedPercent);
+        WidgetPercent = UsageFormat.DisplayPercent(selected.UsedPercent, _display);
+        WidgetText = UsageFormat.Percent(WidgetPercent);
         WidgetSeverity = UsageFormat.Severity(selected.UsedPercent);
     }
 

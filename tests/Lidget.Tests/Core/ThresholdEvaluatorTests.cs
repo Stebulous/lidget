@@ -30,10 +30,21 @@ public class ThresholdEvaluatorTests
         var second = Assert.Single(evaluator.Evaluate(Snapshot(96, Reset)));
         Assert.Empty(evaluator.Evaluate(Snapshot(97, Reset)));
 
-        Assert.Equal("Claude: Session (5h) at 81%", first.Title);
+        Assert.Equal("Claude: Session (5h) 19% left", first.Title);
         Assert.Equal("Usage passed 80%. Resets in 3h 0m.", first.Body);
-        Assert.Equal("Claude: Session (5h) at 96%", second.Title);
+        Assert.Equal("Claude: Session (5h) 4% left", second.Title);
         Assert.Equal("claude.claude.five_hour", second.Tag);
+    }
+
+    [Fact]
+    public void UsedDisplayNamesTheUsedShare()
+    {
+        _settings = new LidgetSettings { UsageDisplay = UsageDisplay.Used };
+
+        var notice = Assert.Single(Evaluator().Evaluate(Snapshot(81, Reset)));
+
+        Assert.Equal("Claude: Session (5h) 81% used", notice.Title);
+        Assert.Equal("Usage passed 80%. Resets in 3h 0m.", notice.Body);
     }
 
     [Fact]
@@ -67,7 +78,7 @@ public class ThresholdEvaluatorTests
         _time.Advance(TimeSpan.FromHours(5));
         var reset = Assert.Single(evaluator.Evaluate(Snapshot(2, Reset.AddHours(10))));
         Assert.Equal("Claude: Session (5h) reset", reset.Title);
-        Assert.Equal("Usage is now 2%. Resets in 4h 0m.", reset.Body);
+        Assert.Equal("Now 98% left. Resets in 4h 0m.", reset.Body);
 
         // A window that did not reach a threshold resets without a notice.
         Assert.Empty(evaluator.Evaluate(Snapshot(3, Reset.AddHours(15))));

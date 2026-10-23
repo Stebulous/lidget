@@ -80,7 +80,7 @@ public sealed class ThresholdEvaluator
                     {
                         notifications.Add(new UsageNotification(
                             $"{_displayName(snapshot.ProviderId)}: {limit.Label} reset",
-                            $"Usage is now {UsageFormat.Percent(limit.UsedPercent)}. {UsageFormat.ResetText(limit.ResetsAt, now)}.",
+                            $"Now {UsageFormat.LimitText(limit.UsedPercent, settings.UsageDisplay)}. {UsageFormat.ResetText(limit.ResetsAt, now)}.",
                             tag));
                     }
 
@@ -94,7 +94,7 @@ public sealed class ThresholdEvaluator
                 var crossed = settings.NotificationThresholds.Where(t => limit.UsedPercent >= t).DefaultIfEmpty(0).Max();
                 if (crossed > state.Notified)
                 {
-                    notifications.Add(ThresholdNotice(snapshot.ProviderId, limit, crossed, now, tag));
+                    notifications.Add(ThresholdNotice(snapshot.ProviderId, limit, crossed, settings.UsageDisplay, now, tag));
                     state = state with { Notified = crossed };
                 }
 
@@ -115,14 +115,14 @@ public sealed class ThresholdEvaluator
         return notifications;
     }
 
-    private UsageNotification ThresholdNotice(string providerId, LimitWindow limit, int threshold, DateTimeOffset now, string tag)
+    private UsageNotification ThresholdNotice(string providerId, LimitWindow limit, int threshold, UsageDisplay display, DateTimeOffset now, string tag)
     {
         var name = _displayName(providerId);
         var reset = UsageFormat.ResetText(limit.ResetsAt, now);
         return limit.UsedPercent >= 100
             ? new UsageNotification($"{name}: {limit.Label} limit reached", $"{reset}.", tag)
             : new UsageNotification(
-                $"{name}: {limit.Label} at {UsageFormat.Percent(limit.UsedPercent)}",
+                $"{name}: {limit.Label} {UsageFormat.LimitText(limit.UsedPercent, display)}",
                 $"Usage passed {threshold}%. {reset}.",
                 tag);
     }

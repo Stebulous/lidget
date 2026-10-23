@@ -8,6 +8,7 @@ using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.Painting.Effects;
+using Lidget.Core.Formatting;
 using Lidget.Core.Models;
 using Lidget.Core.Storage;
 using SkiaSharp;
@@ -59,6 +60,13 @@ public sealed partial class HistoryViewModel : ObservableObject
     /// <summary>Enabled provider IDs. The chart shows only these providers.</summary>
     public IReadOnlySet<string> VisibleProviders { get; set; } = new HashSet<string>();
 
+    /// <summary>Whether the chart shows the used share or the share that is left. Call <see cref="Reload"/> after a change.</summary>
+    public UsageDisplay Display { get; set; }
+
+    /// <summary>The meaning of the values, next to the chart title.</summary>
+    [ObservableProperty]
+    public partial string ValueCaption { get; set; } = "% left";
+
     partial void OnShowWeekChanged(bool value) => Reload();
 
     /// <summary>Reads the history again and rebuilds the chart. Safe to call from any thread.</summary>
@@ -68,6 +76,7 @@ public sealed partial class HistoryViewModel : ObservableObject
         var range = ShowWeek ? TimeSpan.FromDays(7) : TimeSpan.FromHours(24);
         var now = _time.GetUtcNow();
         var visible = VisibleProviders;
+        var display = Display;
 
         Task.Run(() => _store.QueryLast(range, now).Where(p => visible.Contains(p.ProviderId)).ToList())
             .ContinueWith(
@@ -75,13 +84,13 @@ public sealed partial class HistoryViewModel : ObservableObject
                 {
                     if (task.IsCompletedSuccessfully && version == Volatile.Read(ref _loadVersion))
                     {
-                        _dispatcher.BeginInvoke(() => Build(task.Result, now, range));
+                        _dispatcher.BeginInvoke(() => Build(task.Result, now, range, display));
                     }
                 },
                 TaskScheduler.Default);
     }
 
-    private void Build(IReadOnlyList<HistoryPoint> points, DateTimeOffset now, TimeSpan range)
+    private void Build(IReadOnlyList<HistoryPoint> points, DateTimeOffset now, TimeSpan range, UsageDisplay display)
     {
         var dark = ApplicationThemeManager.GetAppTheme() != ApplicationTheme.Light;
         var labelColor = dark ? new SKColor(255, 255, 255, 150) : new SKColor(0, 0, 0, 150);
@@ -104,7 +113,7 @@ public sealed partial class HistoryViewModel : ObservableObject
             series.Add(new LineSeries<DateTimePoint>
             {
                 Name = name,
-                Values = WithGaps(group),
+                Values = WithGaps(group, display),
                 Fill = null,
                 GeometrySize = 0,
                 GeometryFill = null,
@@ -151,9 +160,10 @@ public sealed partial class HistoryViewModel : ObservableObject
         ];
         Series = [.. series];
         HasData = series.Count > 0;
+        ValueCaption = display == UsageDisplay.Remaining ? "% left" : "% used";
     }
 
-    private static List<DateTimePoint> WithGaps(IEnumerable<HistoryPoint> points)
+    private static List<DateTimePoint> WithGaps(IEnumerable<HistoryPoint> points, UsageDisplay display)
     {
         var values = new List<DateTimePoint>();
         DateTimeOffset? previous = null;
@@ -164,7 +174,7 @@ public sealed partial class HistoryViewModel : ObservableObject
                 values.Add(new DateTimePoint(p.LocalDateTime.AddTicks(1), null));
             }
 
-            values.Add(new DateTimePoint(point.ObservedAt.LocalDateTime, point.UsedPercent));
+            values.Add(new DateTimePoint(point.ObservedAt.LocalDateTime, UsageFormat.DisplayPercent(point.UsedPercent, display)));
             previous = point.ObservedAt;
         }
 

@@ -62,7 +62,18 @@
                     </ui:CardControl.Content>
                 </ui:CardControl>
 
-                <TextBlock Text="Taskbar widget" Style="{StaticResource SectionHeader}" />
+                <TextBlock Text="Display" Style="{StaticResource SectionHeader}" />
+                <ui:CardControl Icon="{ui:SymbolIcon Gauge20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Show limits as" />
+                            <TextBlock Text="Applies to the widget, the flyout, the history chart, and notifications." TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ComboBox AutomationProperties.Name="Show limits as" MinWidth="200" ItemsSource="{Binding DisplayOptions}" DisplayMemberPath="Label"
+                              SelectedItem="{Binding SelectedDisplay}" />
+                </ui:CardControl>
                 <ui:CardControl Icon="{ui:SymbolIcon DataBarHorizontal20}">
                     <ui:CardControl.Header>
                         <StackPanel>
@@ -96,12 +107,12 @@
                 <ui:CardControl Icon="{ui:SymbolIcon Alert20}">
                     <ui:CardControl.Header>
                         <StackPanel>
-                            <TextBlock Text="Warn at these percentages" />
+                            <TextBlock Text="Warn when usage passes these percentages" />
                             <TextBlock Text="Separate values with commas, for example 80, 95." FontSize="12"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </ui:CardControl.Header>
-                    <ui:TextBox AutomationProperties.Name="Warn at these percentages" Width="140" Text="{Binding ThresholdsText, UpdateSourceTrigger=PropertyChanged, Delay=500}" />
+                    <ui:TextBox AutomationProperties.Name="Warn when usage passes these percentages" Width="140" Text="{Binding ThresholdsText, UpdateSourceTrigger=PropertyChanged, Delay=500}" />
                 </ui:CardControl>
                 <TextBlock Text="{Binding ThresholdsError}" Style="{StaticResource ErrorText}"
                            Visibility="{Binding ThresholdsError, Converter={StaticResource NullToCollapsed}}" />

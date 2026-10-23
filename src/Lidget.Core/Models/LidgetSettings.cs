@@ -7,6 +7,16 @@ public enum WidgetMetric
     Weekly,
 }
 
+/// <summary>How the widget, the flyout, and notifications show a limit.</summary>
+public enum UsageDisplay
+{
+    /// <summary>The share of the limit that is left, like a fuel gauge.</summary>
+    Remaining,
+
+    /// <summary>The share of the limit that is used.</summary>
+    Used,
+}
+
 public sealed record LidgetSettings
 {
     public const int MinRefreshMinutes = 1;
@@ -19,6 +29,8 @@ public sealed record LidgetSettings
     public int RefreshIntervalMinutes { get; init; } = 5;
 
     public WidgetMetric WidgetMetric { get; init; } = WidgetMetric.Tightest;
+
+    public UsageDisplay UsageDisplay { get; init; } = UsageDisplay.Remaining;
 
     /// <summary>Used percentages that trigger a notification, in ascending order.</summary>
     public IReadOnlyList<int> NotificationThresholds { get; init; } = [80, 95];

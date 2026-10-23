@@ -1,4 +1,5 @@
 using System.Globalization;
+using Lidget.Core.Models;
 
 namespace Lidget.Core.Formatting;
 
@@ -24,6 +25,17 @@ public static class UsageFormat
 
     public static string Percent(double usedPercent) =>
         Math.Round(Math.Clamp(usedPercent, 0, 999), MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture) + "%";
+
+    /// <summary>The share to show for a limit, from 0 to 100: the used share, or the share that is left.</summary>
+    public static double DisplayPercent(double usedPercent, UsageDisplay display)
+    {
+        var used = Math.Clamp(usedPercent, 0, 100);
+        return display == UsageDisplay.Remaining ? 100 - used : used;
+    }
+
+    /// <summary>A percentage with its meaning, for example "88% left" or "12% used".</summary>
+    public static string LimitText(double usedPercent, UsageDisplay display) =>
+        Percent(DisplayPercent(usedPercent, display)) + (display == UsageDisplay.Remaining ? " left" : " used");
 
     /// <summary>A short countdown, for example "45m", "3h 12m", or "2d 4h".</summary>
     public static string Countdown(TimeSpan remaining)

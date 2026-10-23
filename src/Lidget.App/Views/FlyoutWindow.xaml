@@ -81,8 +81,8 @@
                 </DockPanel>
                 <Grid Grid.Row="1" Height="6" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="{Binding UsedPercent, Converter={StaticResource PercentToStar}}" />
-                        <ColumnDefinition Width="{Binding UsedPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
+                        <ColumnDefinition Width="{Binding BarPercent, Converter={StaticResource PercentToStar}}" />
+                        <ColumnDefinition Width="{Binding BarPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
                     </Grid.ColumnDefinitions>
                     <Border Grid.ColumnSpan="2" CornerRadius="3" Background="{DynamicResource ControlStrongFillColorDisabledBrush}" />
                     <Border CornerRadius="3" Style="{StaticResource SeverityFill}" />

@@ -118,7 +118,7 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
     private void Apply(ProviderSnapshot snapshot)
     {
         var provider = Providers.FirstOrDefault(p => p.Id == snapshot.ProviderId);
-        provider?.Apply(snapshot, _settings.Current.WidgetMetric, _time.GetUtcNow());
+        provider?.Apply(snapshot, _time.GetUtcNow());
         WidgetChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -131,7 +131,7 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         foreach (var provider in Providers)
         {
             provider.IsEnabled = settings.IsProviderEnabled(provider.Id);
-            provider.ApplyMetric(settings.WidgetMetric);
+            provider.ApplySettings(settings.WidgetMetric, settings.UsageDisplay, _time.GetUtcNow());
             if (provider.IsEnabled)
             {
                 VisibleProviders.Add(provider);
@@ -141,6 +141,7 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         if (History is not null)
         {
             History.VisibleProviders = VisibleProviders.Select(p => p.Id).ToHashSet();
+            History.Display = settings.UsageDisplay;
             History.Reload();
         }
 

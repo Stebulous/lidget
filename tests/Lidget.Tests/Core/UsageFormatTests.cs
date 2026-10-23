@@ -1,4 +1,5 @@
 using Lidget.Core.Formatting;
+using Lidget.Core.Models;
 
 namespace Lidget.Tests.Core;
 
@@ -38,6 +39,17 @@ public class UsageFormatTests
     public void FormatsCountdown(int seconds, string expected)
     {
         Assert.Equal(expected, UsageFormat.Countdown(TimeSpan.FromSeconds(seconds)));
+    }
+
+    [Theory]
+    [InlineData(12, UsageDisplay.Remaining, 88, "88% left")]
+    [InlineData(12, UsageDisplay.Used, 12, "12% used")]
+    [InlineData(104, UsageDisplay.Remaining, 0, "0% left")]
+    [InlineData(-2, UsageDisplay.Used, 0, "0% used")]
+    public void DisplaysUsedOrRemainingShare(double used, UsageDisplay display, double expectedPercent, string expectedText)
+    {
+        Assert.Equal(expectedPercent, UsageFormat.DisplayPercent(used, display));
+        Assert.Equal(expectedText, UsageFormat.LimitText(used, display));
     }
 
     [Fact]
