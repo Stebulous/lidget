@@ -6,6 +6,8 @@ namespace Lidget.App.ViewModels;
 
 public sealed partial class LimitViewModel(string id) : ObservableObject
 {
+    private double _usedPercent;
+
     public string Id { get; } = id;
 
     [ObservableProperty]
@@ -37,8 +39,11 @@ public sealed partial class LimitViewModel(string id) : ObservableObject
         PercentText = UsageFormat.LimitText(window.UsedPercent, display);
         Severity = UsageFormat.Severity(window.UsedPercent);
         ResetsAt = window.ResetsAt;
+        _usedPercent = window.UsedPercent;
         Tick(now);
     }
 
-    public void Tick(DateTimeOffset now) => ResetText = UsageFormat.ResetText(ResetsAt, now);
+    /// <summary>Claude reports no reset time for a window that no request has started yet.</summary>
+    public void Tick(DateTimeOffset now) =>
+        ResetText = ResetsAt is null && _usedPercent <= 0 ? "Not started" : UsageFormat.ResetText(ResetsAt, now);
 }
