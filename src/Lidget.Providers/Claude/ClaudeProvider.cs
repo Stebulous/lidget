@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Lidget.Core.Models;
 using Lidget.Core.Providers;
+using Lidget.Core.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -24,12 +26,21 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>The wait after HTTP 429 when the response has no <c>Retry-After</c> header.</summary>
     public static readonly TimeSpan DefaultRateLimitWait = TimeSpan.FromMinutes(15);
 
+    /// <summary>A saved wait that ends later than this after a start is not used, for example after a clock change.</summary>
+    public static readonly TimeSpan MaxSavedWait = TimeSpan.FromDays(1);
+
+    /// <summary>The file in the data folder that keeps the end of a rate-limit wait across restarts.</summary>
+    public const string WaitFileName = "claude-usage-wait.json";
+
+    private const string RateLimitedMessage = "Anthropic is limiting usage requests. Lidget will retry later.";
+
     private readonly ClaudeCredentialStore _credentials;
     private readonly ClaudeUsageClient _client;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
     private readonly IReadOnlyList<ClaudeLimitFeed> _feeds;
     private readonly ClaudeCodeUsageCache? _cache;
+    private readonly string? _waitPath;
     private ProviderSnapshot? _lastEndpoint;
     private ProviderSnapshot? _lastGoodEndpoint;
     private DateTimeOffset? _endpointRetryAt;
@@ -41,7 +52,8 @@ public sealed class ClaudeProvider : IUsageProvider
         TimeProvider time,
         ILogger<ClaudeProvider>? logger = null,
         IEnumerable<ClaudeLimitFeed>? feeds = null,
-        ClaudeCodeUsageCache? cache = null)
+        ClaudeCodeUsageCache? cache = null,
+        string? waitPath = null)
     {
         _credentials = credentials;
         _client = client;
@@ -49,6 +61,8 @@ public sealed class ClaudeProvider : IUsageProvider
         _logger = logger ?? (ILogger)NullLogger.Instance;
         _feeds = feeds?.ToArray() ?? [];
         _cache = cache;
+        _waitPath = waitPath;
+        LoadWait();
         foreach (var feed in _feeds)
         {
             feed.Source.ReadingsChanged += OnFeedReadings;
@@ -67,7 +81,8 @@ public sealed class ClaudeProvider : IUsageProvider
         var cached = _cache?.Read();
         var now = _time.GetUtcNow();
         var endpoint = _lastEndpoint;
-        if (ShouldRequest(cached, readings, now))
+        var requested = ShouldRequest(cached, readings, now);
+        if (requested)
         {
             _logger.LogDebug("Requesting Claude usage from the endpoint");
             endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
@@ -78,7 +93,7 @@ public sealed class ClaudeProvider : IUsageProvider
             endpoint = endpoint with { RetryAfter = retry > now ? retry - now : TimeSpan.Zero };
         }
 
-        if (_plan is null && cached is not null)
+        if (_plan is null && (cached is not null || !requested))
         {
             await ReadPlanAsync(ct).ConfigureAwait(false);
         }
@@ -134,7 +149,7 @@ public sealed class ClaudeProvider : IUsageProvider
             : new ProviderSnapshot(Id, ProviderStatus.Ok, cached.Limits, null, cached.FetchedAt);
     }
 
-    /// <summary>A response that Claude Code saved has no plan, so read the plan from the login.</summary>
+    /// <summary>A response that Claude Code saved, or a wait from before a restart, has no plan, so read the plan from the login.</summary>
     private async Task ReadPlanAsync(CancellationToken ct)
     {
         var credentials = await _credentials.GetCredentialsAsync(forceRefresh: false, ct).ConfigureAwait(false);
@@ -151,12 +166,70 @@ public sealed class ClaudeProvider : IUsageProvider
         if (endpoint.Status == ProviderStatus.Ok)
         {
             _lastGoodEndpoint = endpoint;
-            _endpointRetryAt = null;
+            if (_endpointRetryAt is not null)
+            {
+                _endpointRetryAt = null;
+                SaveWait(null);
+            }
         }
         else if (endpoint.Status == ProviderStatus.RateLimited)
         {
             _endpointRetryAt = now + (endpoint.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : DefaultRateLimitWait);
             _logger.LogInformation("Anthropic rate-limited the usage request. The next request is after {RetryAt:o}", _endpointRetryAt);
+            SaveWait(_endpointRetryAt);
+        }
+    }
+
+    /// <summary>
+    /// Restores a rate-limit wait that a previous run of Lidget saved, so that a restart does not send a request
+    /// before the <c>Retry-After</c> time.
+    /// </summary>
+    private void LoadWait()
+    {
+        if (_waitPath is null || !File.Exists(_waitPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var retryAt = JsonNode.Parse(File.ReadAllText(_waitPath))?["retryAt"]?.GetValue<DateTimeOffset>();
+            var now = _time.GetUtcNow();
+            if (retryAt is { } until && until > now && until - now <= MaxSavedWait)
+            {
+                _endpointRetryAt = until;
+                _lastEndpoint = Failed(ProviderStatus.RateLimited, RateLimitedMessage) with { RetryAfter = until - now };
+                _logger.LogInformation("Anthropic rate-limited the usage request before the restart. The next request is after {RetryAt:o}", until);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or FormatException)
+        {
+            _logger.LogWarning("Could not read the saved Claude usage wait: {Error}", ex.Message);
+        }
+    }
+
+    /// <summary>Saves the end of the wait, or deletes the file when <paramref name="retryAt"/> is null.</summary>
+    private void SaveWait(DateTimeOffset? retryAt)
+    {
+        if (_waitPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (retryAt is { } until)
+            {
+                AtomicFile.WriteAllText(_waitPath, new JsonObject { ["retryAt"] = until.ToUniversalTime() }.ToJsonString());
+            }
+            else
+            {
+                File.Delete(_waitPath);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning("Could not save the Claude usage wait: {Error}", ex.Message);
         }
     }
 
@@ -279,7 +352,7 @@ public sealed class ClaudeProvider : IUsageProvider
         switch (response.Status)
         {
             case HttpStatusCode.TooManyRequests:
-                return Failed(ProviderStatus.RateLimited, "Anthropic is limiting usage requests. Lidget will retry later.") with
+                return Failed(ProviderStatus.RateLimited, RateLimitedMessage) with
                 {
                     RetryAfter = response.RetryAfter,
                 };

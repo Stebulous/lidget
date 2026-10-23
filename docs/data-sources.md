@@ -29,6 +29,7 @@ Lidget uses these rules to send as few requests as possible:
   Feeds can have a current session reading and a current weekly reading.
   Then Lidget waits until the recent response is 1 hour old, because the endpoint can report more limits.
 - After HTTP 429, Lidget sends no request until the `Retry-After` time. Without that header, Lidget waits 15 minutes.
+  Lidget saves that time, so the wait continues after a restart of Lidget or Windows.
 - If the endpoint fails, the response that Claude Code saved, or current feed readings, keep the provider status OK.
   Older readings stay visible, with the error message.
 
@@ -71,6 +72,7 @@ A Debug build, or a copy that Velopack did not install, does not check for updat
 | `%LOCALAPPDATA%\LidgetData\history.db` | Limit history (SQLite) |
 | `%LOCALAPPDATA%\LidgetData\cost-cache.db` | Parsed session log data for the cost estimates (SQLite) |
 | `%LOCALAPPDATA%\LidgetData\notifications.json` | The thresholds that notified in each limit window |
+| `%LOCALAPPDATA%\LidgetData\claude-usage-wait.json` | The end of a wait after the Claude usage endpoint returned HTTP 429. Lidget deletes it after the next successful response. |
 | `%LOCALAPPDATA%\LidgetData\claude-statusline.json` and `statusline-original.json` | The statusline feed, and your original statusline setting |
 | `%LOCALAPPDATA%\LidgetData\logs\` | Logs for the last 7 days. Logs do not contain tokens. |
 | `~/.claude/settings.json` | Only the `statusLine` key, when you change the statusline feed setting. Lidget keeps a copy in `settings.json.lidget-backup`. |

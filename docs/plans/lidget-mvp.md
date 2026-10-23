@@ -100,6 +100,7 @@ Do not build these items in the MVP:
 | D46 | Approach | Claude usage endpoint: a feed reading is current for 10 minutes. While the session and weekly readings are current, Lidget requests the endpoint at most one time each hour. After HTTP 429, Lidget waits for the `Retry-After` time, or 15 minutes without the header. It shows the feed values with the `Ok` status during the wait. (Refines D23 for Claude.) | Anthropic answered with HTTP 429 and a `Retry-After` of about 54 minutes after a small number of requests. | user |
 | D47 | Experience | History stores a reading only when its value changes, or when 10 minutes passed since the last stored row for the limit. The chart draws steps, shows a reading without neighbors as a dot, and breaks the line at gaps of more than 45 minutes. | Feeds push readings every few seconds while you work. Usage changes in steps, and a sloped line between distant readings shows values that were not measured. | agent default |
 | D48 | Approach | Claude data: Lidget reads the usage response that Claude Code saves in `~/.claude.json` (`cachedUsageUtilization`), with the same 1-hour limit and account check as Claude Code. Without current feed readings, Lidget requests the endpoint only when the newest response from Lidget or Claude Code is 15 minutes old. (Refines D46.) Lidget does not start the Claude Code CLI to ask for usage. | T3 Code gets its limits from a Claude Code CLI that it starts every 5 minutes. The CLI requests the same endpoint with the same login, and saves each response. A saved response costs no request. Starting the CLI would add a large process and use an API that is marked experimental. | user |
+| D49 | Approach | `ClaudeProvider` saves the end of a rate-limit wait in `claude-usage-wait.json` in the data folder, and restores it at start. A successful response deletes the file. A saved wait that ends more than 1 day after the start is ignored. | Each restart during a wait sent one request, and each refused request can start a new 1-hour wait. | user |
 
 ## Constraints
 
@@ -850,3 +851,16 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
   The requests of one client can make the endpoint refuse the others.
 - Live check: a temporary .NET file-based app ran `ClaudeCodeUsageCache` on the real `~/.claude.json`. With the system clock, it gave no reading, because the copy was older than 1 hour. With a clock 1 minute after `fetchedAtMs`, it read session 0% and weekly 0% in 4 ms.
 - Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 202 tests.
+
+### 2026-10-23 — Installed local build and the saved wait (revisions `1f7441a` and after)
+
+- Install: `./scripts/pack.ps1 -Version 0.1.1-local.1` with a temporary output folder, then `Lidget-win-Setup.exe --silent` over the installed `0.1.0`.
+  The data folder was copied first. Settings and history stayed. Velopack orders `0.1.1-local.1` before `0.1.1`, so a published `0.1.1` updates this install.
+- Run: the installed build, with `LIDGET_DEBUG_LOG=1`, from 1:48 AM to after 4:10 AM.
+  - Lidget requested the endpoint at 1:48 AM, 2:31 AM, and 3:36 AM: one request at start, and one after each `Retry-After` time. Each answer was HTTP 429.
+  - The 1:48 AM answer kept the earlier end time (2:31 AM). The 2:31 AM and 3:36 AM answers each started a new 1-hour wait.
+  - `cachedUsageUtilization` stayed at 11:00 PM for the full run, so the Claude Code saved response was not checked live.
+  - The Claude values came from the T3 Code feed.
+- Finding: the request at 1:48 AM came from the restart, because the wait was only in memory. D49 saves it.
+- Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 208 tests.
+- Open gates: the Claude Code saved response on a live run, after the endpoint answers again.

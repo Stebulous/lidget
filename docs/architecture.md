@@ -85,5 +85,6 @@ Do not copy code from FluentFlyout (GPL-3.0). Lidget uses the same technique wit
 | `history.db` | `HistoryStore` | One row for each reading, keyed by provider, limit, and observation time. `Migrations` holds the schema versions. |
 | `cost-cache.db` | `CostCache` | Parsed log entries, so that a scan reads only new log data. |
 | `notifications.json` | `ThresholdEvaluator` | The thresholds that notified in each limit window. |
+| `claude-usage-wait.json` | `ClaudeProvider` | The end of a rate-limit wait, so that a restart does not send a request before the `Retry-After` time. |
 
 `AtomicFile` writes a temporary file and then replaces the target, so that a crash does not leave a partial file.

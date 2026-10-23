@@ -30,7 +30,7 @@ public class ClaudeProviderTests : IDisposable
         File.WriteAllText(_dir.File(".credentials.json"), document.ToJsonString());
     }
 
-    private ClaudeProvider CreateProvider(FakeHttpHandler handler, IClaudeLimitFeed? feed = null, bool withClaudeCodeCopy = false)
+    private ClaudeProvider CreateProvider(FakeHttpHandler handler, IClaudeLimitFeed? feed = null, bool withClaudeCodeCopy = false, bool saveWait = false)
     {
         var http = new HttpClient(handler);
         return new ClaudeProvider(
@@ -38,8 +38,11 @@ public class ClaudeProviderTests : IDisposable
             new ClaudeUsageClient(http, _time),
             _time,
             feeds: feed is null ? null : [new ClaudeLimitFeed(feed, () => true)],
-            cache: withClaudeCodeCopy ? new ClaudeCodeUsageCache(_dir.File(".claude.json"), _time) : null);
+            cache: withClaudeCodeCopy ? new ClaudeCodeUsageCache(_dir.File(".claude.json"), _time) : null,
+            waitPath: saveWait ? WaitPath : null);
     }
+
+    private string WaitPath => _dir.File(ClaudeProvider.WaitFileName);
 
     private void WriteClaudeCodeCopy(DateTimeOffset fetchedAt, double session, double weekly) =>
         File.WriteAllText(_dir.File(".claude.json"), ClaudeCodeUsageCacheTests.Config(fetchedAt, session, weekly));
@@ -368,5 +371,62 @@ public class ClaudeProviderTests : IDisposable
         Assert.Null(snapshot.RetryAfter);
         Assert.Equal("Pro", snapshot.PlanName);
         Assert.Equal(61, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+    }
+    [Fact]
+    public async Task ARestartKeepsTheRateLimitWait()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => TooManyRequests(TimeSpan.FromMinutes(50)));
+        await CreateProvider(handler, saveWait: true).RefreshAsync(CancellationToken.None);
+        Assert.True(File.Exists(WaitPath));
+
+        _time.Advance(TimeSpan.FromMinutes(10));
+        var restarted = CreateProvider(handler, saveWait: true);
+        var snapshot = await restarted.RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.RateLimited, snapshot.Status);
+        Assert.Equal(TimeSpan.FromMinutes(40), snapshot.RetryAfter);
+        Assert.Equal("Pro", snapshot.PlanName);
+
+        _time.Advance(TimeSpan.FromMinutes(41));
+        await restarted.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task ASuccessfulResponseDeletesTheSavedWait()
+    {
+        WriteCredentials();
+        var limited = true;
+        var handler = new FakeHttpHandler((_, _) => limited
+            ? TooManyRequests(TimeSpan.FromMinutes(5))
+            : FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var provider = CreateProvider(handler, saveWait: true);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        limited = false;
+        _time.Advance(TimeSpan.FromMinutes(6));
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.False(File.Exists(WaitPath));
+    }
+
+    [Theory]
+    [InlineData("not json")]
+    [InlineData("""{"retryAt":"later"}""")]
+    [InlineData("""{"retryAt":"2026-10-22T06:00:00Z"}""")]
+    [InlineData("""{"retryAt":"2026-10-30T06:00:00Z"}""")]
+    public async Task AnUnusableSavedWaitDoesNotStopTheRequest(string content)
+    {
+        WriteCredentials();
+        File.WriteAllText(WaitPath, content);
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+
+        var snapshot = await CreateProvider(handler, saveWait: true).RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
     }
 }
