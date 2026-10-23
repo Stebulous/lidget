@@ -867,9 +867,11 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 
 ### 2026-10-23 — Release 0.1.1 and the update from GitHub (revision `25fa0e7`)
 
-- CI passed on `25fa0e7`. The tag `v0.1.1` started the **Release** workflow, which passed and uploaded a draft with the full package, a delta package from `0.1.0`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
+- CI passed on `25fa0e7`. The tag `v0.1.1` started the **Release** workflow, which passed.
+  The draft had the full package, a delta package from `0.1.0`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
 - Draft check: `Lidget-0.1.1-full.nupkg` has `Lidget.exe` with the version `0.1.1+25fa0e7` and `lidget-statusline.exe`. The draft installer was not installed, because the update check below installs the same package.
 - The release was published at 4:27 AM as the latest release.
-- Update: the installed `0.1.1-local.2` started from the Start menu shortcut, downloaded `0.1.1` from GitHub in 5 seconds, and logged "Update 0.1.1 is ready for the next start".
+- Update: the installed `0.1.1-local.2` started from the Start menu shortcut, and downloaded `0.1.1` from GitHub in 5 seconds.
+  It logged "Update 0.1.1 is ready for the next start".
   The next start ran `0.1.1`, embedded the widget, and restored the saved Claude usage wait. The `Run` value points to `current\Lidget.exe`.
 - This closes the open gate "An update from a published GitHub release".
