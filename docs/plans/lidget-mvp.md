@@ -95,6 +95,10 @@ Do not build these items in the MVP:
 | D41 | Delivery | The release workflow uploads to a draft GitHub release. The maintainer publishes it after a review. The installer adds a Start menu shortcut only. | Lidget updates only from published releases, so a bad build does not reach users before the review. A taskbar widget does not need a desktop shortcut. | agent default |
 | D42 | Delivery | The final name is "Lidget", from "limits" and "widget". The package ID `Lidget` is fixed from the first release. | The repository has this name, and the name describes the app. | user |
 | D43 | Experience | `TaskbarHost` reads the taskbar button edges with UI Automation. If the widget would cover app buttons, Lidget shows the pill. The widget goes back into the taskbar when the space is 24 DIP larger than the widget needs. With left alignment, the widget ends left of the Widgets button. | T4.3 showed that at 200% scale the widget covered app buttons, and that with left alignment it covered the Widgets button. The extra space stops a switch at each small change. | agent default |
+| D44 | Experience | The widget, the flyout, the chart, and the notification text show the share of each limit that is left, by default. The **Show limits as** setting changes them to the used share. The bar colors (D20) and the notification thresholds (D28) always use the used share. | A high used percentage can read like a full tank. The share that is left is the usual way to show a limit. | user |
+| D45 | Approach | Claude data: a T3 Code feed, on by default. Lidget reads the Claude Agent SDK `rate_limit_event` lines in `~/.t3/userdata/logs/provider/events.*.log`, and does not write T3 Code files. | Claude Code runs the statusline only in its terminal interface, so the statusline feed (D11) gets no data from T3 Code sessions. | user |
+| D46 | Approach | Claude usage endpoint: a feed reading is current for 10 minutes. While the session and weekly readings are current, Lidget requests the endpoint at most one time each hour. After HTTP 429, Lidget waits for the `Retry-After` time, or 15 minutes without the header. It shows the feed values with the `Ok` status during the wait. (Refines D23 for Claude.) | Anthropic answered with HTTP 429 and a `Retry-After` of about 54 minutes after a small number of requests. | user |
+| D47 | Experience | History stores a reading only when its value changes, or when 10 minutes passed since the last stored row for the limit. The chart draws steps, shows a reading without neighbors as a dot, and breaks the line at gaps of more than 45 minutes. | Feeds push readings every few seconds while you work. Usage changes in steps, and a sloped line between distant readings shows values that were not measured. | agent default |
 
 ## Constraints
 
@@ -275,6 +279,7 @@ On HTTP 401 from the usage endpoint, run one forced refresh and retry the reques
 - `ClaudeStatusLineSource` watches `claude-statusline.json` with `FileSystemWatcher` and raises `SnapshotPushed`.
 - `ClaudeProvider` merges both sources: for each limit, the newer `ObservedAt` wins.
 - Project-level `statusLine` settings override the user setting. The Settings window states this limitation.
+- Claude Code runs the statusline only in its terminal interface. D45 adds a T3 Code feed for sessions in T3 Code, and [Data sources and files](../data-sources.md) describes the current sources.
 
 ### Codex app-server client (D12)
 
@@ -803,3 +808,26 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Open gates:
   - The one-week check.
   - An update from a published GitHub release.
+
+### 2026-10-23 — Remaining display, T3 Code feed, and history (revisions `182cd7e` to `8ced0ab`)
+
+- Report: the flyout showed Claude at 0% with "Reset time unknown" and "Anthropic is limiting usage requests". The chart had steep lines near 6 AM.
+- Chart finding: the chart was correct. `history.db` had rows from 4:51 AM to 6:47 AM (QA) and from 10:57 PM, and the computer was off between them.
+  The steep lines were limit resets. At 6:06 AM, the Claude session went from 96% to 4%, and Claude weekly from 65% to 0%.
+  At 6:12 AM, the Codex session went from 100% to 0%.
+  `14a022c` draws steps and dots, and `182cd7e` adds a "% left" or "% used" caption.
+- Statusline finding: `claude-statusline.json` did not change during a long T3 Code session. T3 Code uses the Claude Agent SDK, which does not run the statusline command.
+- T3 Code logs: each line is `[<ISO time>] NTIVE: <json>`, and the files rotate at about 10 MB to `.log.1`.
+  A `rate_limit_event` has `rate_limit_info.unifiedWindows.five_hour` and `seven_day`, each with `utilization` (0 to 1) and `resetsAt` (Unix seconds). Older lines have one window, with `rateLimitType` and `utilization`.
+- Endpoint finding: the usage endpoint answered HTTP 429 with a `Retry-After` of about 54 minutes.
+- Live source check: a temporary .NET file-based app ran `ClaudeT3CodeSource` on the real logs. It read session 37% and weekly 3%. The first scan took 44 ms.
+- Debug build, with `LIDGET_DATA_DIR` set to a copy of the data folder:
+  - The widget showed 62% and 94% left. The flyout showed the Pro plan, "Updated just now", and "61% left".
+  - The endpoint answered HTTP 429. Lidget logged the next request time, and showed the feed values without a warning.
+  - **Show limits as** changed the widget, the flyout, and the chart caption at once.
+  - Feed pushes wrote a history row every 10 to 40 seconds. `8ced0ab` keeps repeated values out of history for 10 minutes.
+- Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 185 tests.
+- The installed `0.1.0` was quit for the Debug build checks, and started again from the Start menu shortcut.
+- Open gates:
+  - A release that includes these changes, and the update from `0.1.0`.
+  - The QA checklist rows for **Show limits as** and the T3 Code feed on an installed build.

@@ -29,6 +29,7 @@ Expected result:
 
 | Check | Expected result |
 | --- | --- |
+| Read the widget with the default settings | Each percentage is the share that is left of the tightest limit. A limit with little use has a full bar. |
 | Hover over the widget | The tooltip shows the plan, each limit, and each reset countdown. |
 | Wait 5 minutes | The values change when the provider values change. The countdowns match the provider to the minute. |
 | Right-click the widget | The menu shows **Refresh**, **Settings**, and **Quit Lidget**. |
@@ -54,10 +55,13 @@ Expected result:
 | Check | Expected result |
 | --- | --- |
 | Turn a provider off | The provider goes away from the widget and the flyout at once. |
+| Change **Show limits as** to Used, and then back to Remaining | The widget, the flyout, and the chart change at once. The flyout labels end in "used" or "left". |
 | Change **Start with Windows** | The `Run` value goes away or comes back. |
-| Turn on **Read limits from Claude Code while you work** | `~/.claude/settings.json` has a `statusLine` command for `lidget-statusline.exe`. Your original statusline still shows in Claude Code. |
+| Turn on **Read limits from the Claude Code statusline** | `~/.claude/settings.json` has a `statusLine` command for `lidget-statusline.exe`. Your original statusline still shows in Claude Code. |
 | Send a message in Claude Code with the feed on | The Claude values in Lidget change within 10 seconds. |
-| Turn off **Read limits from Claude Code while you work** | `~/.claude/settings.json` has your original `statusLine` setting again. |
+| Turn off **Read limits from the Claude Code statusline** | `~/.claude/settings.json` has your original `statusLine` setting again. |
+| Send a message to Claude in T3 Code, with **Read limits from T3 Code** on | Within 10 seconds, the Claude values in Lidget change. The flyout shows "Updated just now". |
+| Turn off **Read limits from T3 Code**, and send a message in T3 Code | The Claude values change only at the next endpoint request. |
 | Select **Open data folder** | File Explorer opens `%LOCALAPPDATA%\LidgetData`. |
 
 ## Notifications
@@ -80,7 +84,7 @@ Expected result: the log says "Starting Lidget" with the new version.
 
 ## Uninstall
 
-1. In Settings, turn on **Read limits from Claude Code while you work**.
+1. In Settings, turn on **Read limits from the Claude Code statusline**.
 2. Uninstall Lidget in **Settings** > **Apps** > **Installed apps**.
 
 Expected result:
