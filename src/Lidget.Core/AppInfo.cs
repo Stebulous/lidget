@@ -11,8 +11,8 @@ public static class AppInfo
     public const string PackageId = "Lidget";
 
     /// <summary>
-    /// The GitHub repository whose releases are the update feed. This is an assumption: confirm the
-    /// repository before the first public release.
+    /// The GitHub repository whose releases are the update feed. Installed copies update from its
+    /// published releases.
     /// </summary>
     public const string RepositoryUrl = "https://github.com/Stebulous/lidget";
 
