@@ -110,20 +110,35 @@ public sealed partial class HistoryViewModel : ObservableObject
             var dashed = first.Kind != LimitKind.Session;
             var name = $"{_providerName(first.ProviderId)} {first.Label.ToLowerInvariant()}";
 
-            series.Add(new LineSeries<DateTimePoint>
+            // A reading holds until the next one, so a step line shows a reset as one vertical jump.
+            var values = WithGaps(group, display);
+            series.Add(new StepLineSeries<DateTimePoint>
             {
                 Name = name,
-                Values = WithGaps(group, display),
+                Values = values,
                 Fill = null,
                 GeometrySize = 0,
                 GeometryFill = null,
                 GeometryStroke = null,
-                LineSmoothness = 0,
                 Stroke = new SolidColorPaint(color, 1.5f)
                 {
                     PathEffect = dashed ? new DashEffect([4, 3]) : null,
                 },
             });
+
+            // A line needs two readings. Show a reading between two gaps as a dot.
+            var isolated = Isolated(values);
+            if (isolated.Count > 0)
+            {
+                series.Add(new ScatterSeries<DateTimePoint>
+                {
+                    Name = name,
+                    Values = isolated,
+                    GeometrySize = 4,
+                    Fill = new SolidColorPaint(color),
+                    Stroke = null,
+                });
+            }
 
             var brush = new SolidColorBrush(Color.FromArgb(color.Alpha, color.Red, color.Green, color.Blue));
             brush.Freeze();
@@ -180,6 +195,13 @@ public sealed partial class HistoryViewModel : ObservableObject
 
         return values;
     }
+
+    private static List<DateTimePoint> Isolated(List<DateTimePoint> values) =>
+        values
+            .Where((point, i) => point.Value is not null
+                && (i == 0 || values[i - 1].Value is null)
+                && (i == values.Count - 1 || values[i + 1].Value is null))
+            .ToList();
 
     private static SKColor ProviderColor(string providerId, bool dark) => providerId switch
     {
