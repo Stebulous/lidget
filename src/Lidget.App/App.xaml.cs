@@ -87,7 +87,8 @@ public partial class App : Application
             [
                 new ClaudeLimitFeed(_statusLineSource, () => _settings.Current.ClaudeStatusLineFeed),
                 new ClaudeLimitFeed(_t3CodeSource, () => _settings.Current.ClaudeT3CodeFeed),
-            ]);
+            ],
+            new ClaudeCodeUsageCache(ClaudeCodeUsageCache.DefaultPath, time));
         _providers = [claude, CodexProvider.CreateDefault(time, _loggerFactory)];
 
         _scheduler = new RefreshScheduler(_providers, () => _settings.Current, time, _loggerFactory.CreateLogger<RefreshScheduler>());

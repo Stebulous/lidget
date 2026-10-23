@@ -15,6 +15,12 @@ public sealed class ClaudeProvider : IUsageProvider
     /// <summary>While feed readings are current, Lidget still requests the endpoint at this interval, for limits that the feeds do not report.</summary>
     public static readonly TimeSpan EndpointMaxAge = TimeSpan.FromHours(1);
 
+    /// <summary>
+    /// Without current feed readings, Lidget requests the endpoint at most one time in this interval. A response
+    /// that Claude Code saved counts as a request.
+    /// </summary>
+    public static readonly TimeSpan EndpointInterval = TimeSpan.FromMinutes(15);
+
     /// <summary>The wait after HTTP 429 when the response has no <c>Retry-After</c> header.</summary>
     public static readonly TimeSpan DefaultRateLimitWait = TimeSpan.FromMinutes(15);
 
@@ -23,22 +29,26 @@ public sealed class ClaudeProvider : IUsageProvider
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
     private readonly IReadOnlyList<ClaudeLimitFeed> _feeds;
+    private readonly ClaudeCodeUsageCache? _cache;
     private ProviderSnapshot? _lastEndpoint;
     private ProviderSnapshot? _lastGoodEndpoint;
     private DateTimeOffset? _endpointRetryAt;
+    private string? _plan;
 
     public ClaudeProvider(
         ClaudeCredentialStore credentials,
         ClaudeUsageClient client,
         TimeProvider time,
         ILogger<ClaudeProvider>? logger = null,
-        IEnumerable<ClaudeLimitFeed>? feeds = null)
+        IEnumerable<ClaudeLimitFeed>? feeds = null,
+        ClaudeCodeUsageCache? cache = null)
     {
         _credentials = credentials;
         _client = client;
         _time = time;
         _logger = logger ?? (ILogger)NullLogger.Instance;
         _feeds = feeds?.ToArray() ?? [];
+        _cache = cache;
         foreach (var feed in _feeds)
         {
             feed.Source.ReadingsChanged += OnFeedReadings;
@@ -54,43 +64,90 @@ public sealed class ClaudeProvider : IUsageProvider
     public async Task<ProviderSnapshot> RefreshAsync(CancellationToken ct)
     {
         var readings = FeedReadings();
+        var cached = _cache?.Read();
         var now = _time.GetUtcNow();
-        ProviderSnapshot endpoint;
-        if (_lastEndpoint is { } last && SkipEndpoint(readings, now))
+        var endpoint = _lastEndpoint;
+        if (ShouldRequest(cached, readings, now))
         {
-            endpoint = last.Status == ProviderStatus.RateLimited && _endpointRetryAt is { } retry
-                ? last with { RetryAfter = retry > now ? retry - now : TimeSpan.Zero }
-                : last;
-        }
-        else
-        {
+            _logger.LogDebug("Requesting Claude usage from the endpoint");
             endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
             RecordEndpoint(endpoint, now);
         }
+        else if (endpoint is { Status: ProviderStatus.RateLimited } && _endpointRetryAt is { } retry)
+        {
+            endpoint = endpoint with { RetryAfter = retry > now ? retry - now : TimeSpan.Zero };
+        }
 
-        return Finish(Combine(endpoint, readings, now));
+        if (_plan is null && cached is not null)
+        {
+            await ReadPlanAsync(ct).ConfigureAwait(false);
+        }
+
+        return Finish(Combine(Base(endpoint, cached), readings, now));
     }
 
     /// <summary>
-    /// Anthropic rate-limits the usage endpoint. Skip the request while the server asks Lidget to wait,
-    /// and while current feed readings make it unnecessary.
+    /// Anthropic rate-limits the usage endpoint, and Lidget shares the limit with each Claude Code process of the
+    /// account, such as the CLI that T3 Code starts to check the limits. Do not request while the server asks
+    /// Lidget to wait, or while a recent response from Lidget or from Claude Code makes the request unnecessary.
     /// </summary>
-    private bool SkipEndpoint(IReadOnlyList<LimitWindow> readings, DateTimeOffset now)
+    private bool ShouldRequest(ClaudeCachedUsage? cached, IReadOnlyList<LimitWindow> readings, DateTimeOffset now)
     {
         if (_endpointRetryAt is { } retry && now < retry)
+        {
+            return false;
+        }
+
+        DateTimeOffset? newest = _lastGoodEndpoint?.UpdatedAt;
+        if (cached is not null && HasSessionAndWeekly(cached.Limits) && (newest is null || cached.FetchedAt > newest))
+        {
+            newest = cached.FetchedAt;
+        }
+
+        if (newest is null)
         {
             return true;
         }
 
-        return _lastGoodEndpoint is { } good
-            && now - good.UpdatedAt < EndpointMaxAge
-            && IsCurrent(readings, LimitKind.Session, now)
-            && IsCurrent(readings, LimitKind.Weekly, now);
+        var maxAge = IsCurrent(readings, LimitKind.Session, now) && IsCurrent(readings, LimitKind.Weekly, now)
+            ? EndpointMaxAge
+            : EndpointInterval;
+        return now - newest >= maxAge;
+    }
+
+    private static bool HasSessionAndWeekly(IReadOnlyList<LimitWindow> limits) =>
+        limits.Any(l => l.Kind == LimitKind.Session) && limits.Any(l => l.Kind == LimitKind.Weekly);
+
+    /// <summary>
+    /// The full response to combine with the feeds: Lidget's last endpoint result, or the response that Claude
+    /// Code saved, if that is newer or the endpoint failed.
+    /// </summary>
+    private ProviderSnapshot Base(ProviderSnapshot? endpoint, ClaudeCachedUsage? cached)
+    {
+        if (cached is null)
+        {
+            return endpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
+        }
+
+        return endpoint is { Status: ProviderStatus.Ok } && endpoint.UpdatedAt >= cached.FetchedAt
+            ? endpoint
+            : new ProviderSnapshot(Id, ProviderStatus.Ok, cached.Limits, null, cached.FetchedAt);
+    }
+
+    /// <summary>A response that Claude Code saved has no plan, so read the plan from the login.</summary>
+    private async Task ReadPlanAsync(CancellationToken ct)
+    {
+        var credentials = await _credentials.GetCredentialsAsync(forceRefresh: false, ct).ConfigureAwait(false);
+        if (credentials.OAuth is { } oauth)
+        {
+            _plan = ClaudeUsageMapper.FormatPlan(oauth.SubscriptionType, oauth.RateLimitTier);
+        }
     }
 
     private void RecordEndpoint(ProviderSnapshot endpoint, DateTimeOffset now)
     {
         _lastEndpoint = endpoint;
+        _plan = endpoint.PlanName ?? _plan;
         if (endpoint.Status == ProviderStatus.Ok)
         {
             _lastGoodEndpoint = endpoint;
@@ -133,13 +190,12 @@ public sealed class ClaudeProvider : IUsageProvider
             return;
         }
 
-        var endpoint = _lastEndpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
-        Push(Finish(Combine(endpoint, readings, _time.GetUtcNow())));
+        Push(Finish(Combine(Base(_lastEndpoint, _cache?.Read()), readings, _time.GetUtcNow())));
     }
 
-    /// <summary>Keeps the plan name of the last endpoint result when the result comes from the feeds.</summary>
+    /// <summary>Adds the plan name when the result comes from the feeds or from Claude Code.</summary>
     private ProviderSnapshot Finish(ProviderSnapshot snapshot) =>
-        snapshot.PlanName is null && (_lastEndpoint?.PlanName ?? _lastGoodEndpoint?.PlanName) is { } plan ? snapshot with { PlanName = plan } : snapshot;
+        snapshot.PlanName is null && _plan is { } plan ? snapshot with { PlanName = plan } : snapshot;
 
     /// <summary>
     /// Combines endpoint and feed readings: for each limit, the newer reading wins. If the endpoint failed,

@@ -30,15 +30,19 @@ public class ClaudeProviderTests : IDisposable
         File.WriteAllText(_dir.File(".credentials.json"), document.ToJsonString());
     }
 
-    private ClaudeProvider CreateProvider(FakeHttpHandler handler, IClaudeLimitFeed? feed = null)
+    private ClaudeProvider CreateProvider(FakeHttpHandler handler, IClaudeLimitFeed? feed = null, bool withClaudeCodeCopy = false)
     {
         var http = new HttpClient(handler);
         return new ClaudeProvider(
             new ClaudeCredentialStore(http, _time, claudeHome: _dir.Path),
             new ClaudeUsageClient(http, _time),
             _time,
-            feeds: feed is null ? null : [new ClaudeLimitFeed(feed, () => true)]);
+            feeds: feed is null ? null : [new ClaudeLimitFeed(feed, () => true)],
+            cache: withClaudeCodeCopy ? new ClaudeCodeUsageCache(_dir.File(".claude.json"), _time) : null);
     }
+
+    private void WriteClaudeCodeCopy(DateTimeOffset fetchedAt, double session, double weekly) =>
+        File.WriteAllText(_dir.File(".claude.json"), ClaudeCodeUsageCacheTests.Config(fetchedAt, session, weekly));
 
     private sealed class FakeFeed : IClaudeLimitFeed
     {
@@ -277,5 +281,92 @@ public class ClaudeProviderTests : IDisposable
         Assert.Equal(ProviderStatus.Ok, pushed.Status);
         Assert.Equal("Pro", pushed.PlanName);
         Assert.Equal(55, pushed.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+    }
+    [Fact]
+    public async Task TheEndpointIsRequestedAtMostEveryFifteenMinutes()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var provider = CreateProvider(handler);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(5));
+        var cached = await provider.RefreshAsync(CancellationToken.None);
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, cached.Status);
+        Assert.Equal(Now, cached.UpdatedAt);
+
+        _time.Advance(ClaudeProvider.EndpointInterval - TimeSpan.FromMinutes(5));
+        await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task ARecentClaudeCodeCopySkipsTheEndpoint()
+    {
+        WriteCredentials();
+        WriteClaudeCodeCopy(Now.AddMinutes(-2), session: 37, weekly: 3);
+        var handler = new FakeHttpHandler((_, _) => throw new InvalidOperationException("No request expected."));
+
+        var snapshot = await CreateProvider(handler, withClaudeCodeCopy: true).RefreshAsync(CancellationToken.None);
+
+        Assert.Empty(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal("Pro", snapshot.PlanName);
+        Assert.Equal(Now.AddMinutes(-2), snapshot.UpdatedAt);
+        Assert.Equal(37, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+    }
+
+    [Fact]
+    public async Task AnOldClaudeCodeCopyDoesNotStopTheRequest()
+    {
+        WriteCredentials();
+        WriteClaudeCodeCopy(Now - ClaudeProvider.EndpointInterval - TimeSpan.FromMinutes(1), session: 37, weekly: 3);
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+
+        var snapshot = await CreateProvider(handler, withClaudeCodeCopy: true).RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(38, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+    }
+
+    [Fact]
+    public async Task ANewerClaudeCodeCopyReplacesTheEndpointResult()
+    {
+        WriteCredentials();
+        var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var provider = CreateProvider(handler, withClaudeCodeCopy: true);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(10));
+        WriteClaudeCodeCopy(Now.AddMinutes(9), session: 45, weekly: 55);
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Equal("Pro", snapshot.PlanName);
+        Assert.Equal(45, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+
+        // The copy also delays the next request.
+        _time.Advance(TimeSpan.FromMinutes(13));
+        await provider.RefreshAsync(CancellationToken.None);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task RateLimitWithAClaudeCodeCopyShowsTheCopy()
+    {
+        WriteCredentials();
+        WriteClaudeCodeCopy(Now.AddMinutes(-30), session: 61, weekly: 7);
+        var handler = new FakeHttpHandler((_, _) => TooManyRequests(TimeSpan.FromMinutes(50)));
+
+        var snapshot = await CreateProvider(handler, withClaudeCodeCopy: true).RefreshAsync(CancellationToken.None);
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Null(snapshot.StatusMessage);
+        Assert.Null(snapshot.RetryAfter);
+        Assert.Equal("Pro", snapshot.PlanName);
+        Assert.Equal(61, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
     }
 }

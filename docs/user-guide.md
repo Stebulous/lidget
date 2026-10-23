@@ -109,7 +109,10 @@ Click a notification to open the flyout.
 
 Anthropic limits the number of requests to the Claude usage endpoint.
 After a few requests, the endpoint can ask Lidget to wait for about an hour.
-A feed gives Lidget current Claude values between endpoint requests:
+Lidget uses these sources to send fewer requests:
+
+- **The response that Claude Code saved.** When Claude Code, or the Claude Code CLI that T3 Code starts, gets the usage limits, it saves them in `~/.claude.json`. Lidget reads that copy, and does not send a request while the copy is less than 15 minutes old. This source has no setting.
+- **A feed.** A feed gives Lidget current Claude values after each response, between endpoint requests:
 
 | Feed | Use it when | How it works |
 | --- | --- | --- |
@@ -120,6 +123,7 @@ Claude Code runs the statusline command only in its terminal interface.
 T3 Code sessions do not run it, so use the T3 Code feed for them.
 
 While a feed has current values, Lidget does not request the usage endpoint more than one time each hour.
+[Usage endpoint requests](data-sources.md#usage-endpoint-requests) gives the exact rules.
 
 The statusline feed edits the `statusLine` key in `~/.claude/settings.json`.
 Lidget keeps the output of your original statusline command.
@@ -132,7 +136,7 @@ A `statusLine` setting in a project overrides the user setting, so the feed does
 | --- | --- | --- |
 | A notification says "Lidget could not join the taskbar" | The taskbar is at the bottom of the primary monitor. | Move the taskbar to the bottom. Lidget shows the pill until it can join the taskbar. |
 | The pill shows after a display scale change | The widget would cover taskbar buttons. | Close some apps, or use a smaller scale. The widget goes back when there is space. |
-| "Anthropic is limiting usage requests" | The usage endpoint returned HTTP 429. | Wait. Lidget retries after the time that Anthropic sends. Turn on a feed for current values. |
+| "Anthropic is limiting usage requests" | The usage endpoint returned HTTP 429, and Claude Code saved no response in the last hour. | Wait. Lidget retries after the time that Anthropic sends. Turn on a feed for current values. |
 | "Sign in to Claude Code to show Claude limits" | `~/.claude/.credentials.json` exists. | Run `claude`, and then sign in. |
 | "Run `codex login` to show Codex limits" | `codex login status` | Run `codex login` with a ChatGPT account. |
 | "Install the Codex CLI to show Codex limits" | `codex --version` | Install the Codex CLI, and then restart Lidget. |

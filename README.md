@@ -27,6 +27,7 @@ The name joins "limits" and "widget".
   - A history chart of the last 24 hours or 7 days.
 - A notification shows when the used share of a limit passes 80% and 95%.
 - Claude values update while you work, from the T3 Code logs or from the Claude Code statusline.
+  Lidget also reads the usage response that Claude Code saves.
   Lidget then sends fewer requests to the Claude usage endpoint, which Anthropic rate-limits.
 - If Lidget cannot join the taskbar, or the widget would cover taskbar buttons, the widget moves to a small window in the screen corner.
 - Lidget checks GitHub Releases for updates every 24 hours, and installs a downloaded update at the next start.

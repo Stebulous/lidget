@@ -99,6 +99,7 @@ Do not build these items in the MVP:
 | D45 | Approach | Claude data: a T3 Code feed, on by default. Lidget reads the Claude Agent SDK `rate_limit_event` lines in `~/.t3/userdata/logs/provider/events.*.log`, and does not write T3 Code files. | Claude Code runs the statusline only in its terminal interface, so the statusline feed (D11) gets no data from T3 Code sessions. | user |
 | D46 | Approach | Claude usage endpoint: a feed reading is current for 10 minutes. While the session and weekly readings are current, Lidget requests the endpoint at most one time each hour. After HTTP 429, Lidget waits for the `Retry-After` time, or 15 minutes without the header. It shows the feed values with the `Ok` status during the wait. (Refines D23 for Claude.) | Anthropic answered with HTTP 429 and a `Retry-After` of about 54 minutes after a small number of requests. | user |
 | D47 | Experience | History stores a reading only when its value changes, or when 10 minutes passed since the last stored row for the limit. The chart draws steps, shows a reading without neighbors as a dot, and breaks the line at gaps of more than 45 minutes. | Feeds push readings every few seconds while you work. Usage changes in steps, and a sloped line between distant readings shows values that were not measured. | agent default |
+| D48 | Approach | Claude data: Lidget reads the usage response that Claude Code saves in `~/.claude.json` (`cachedUsageUtilization`), with the same 1-hour limit and account check as Claude Code. Without current feed readings, Lidget requests the endpoint only when the newest response from Lidget or Claude Code is 15 minutes old. (Refines D46.) Lidget does not start the Claude Code CLI to ask for usage. | T3 Code gets its limits from a Claude Code CLI that it starts every 5 minutes. The CLI requests the same endpoint with the same login, and saves each response. A saved response costs no request. Starting the CLI would add a large process and use an API that is marked experimental. | user |
 
 ## Constraints
 
@@ -831,3 +832,21 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
 - Open gates:
   - A release that includes these changes, and the update from `0.1.0`.
   - The QA checklist rows for **Show limits as** and the T3 Code feed on an installed build.
+
+### 2026-10-23 — Claude Code saved response (revision after `be34a99`)
+
+- Question: how does T3 Code get its Claude limits, and can Lidget use the same source?
+- T3 Code source (`pingdotgg/t3code`, `main`):
+  - `apps/server/src/provider/Drivers/claudeUsage.ts` reads token counts from transcripts, for costs. It has no limits.
+  - `ClaudeProvider.ts` starts the Claude Code CLI through the Agent SDK, with no prompt, and sends the `get_usage` control request (`usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`). `ClaudeDriver.ts` keeps the result for 5 minutes.
+  - `claudeUsageLimits.ts` maps the `get_usage` response and the streamed `rate_limit_event`.
+  - `claudeResetCredits.ts` requests `/api/oauth/usage?cedar_ember=1` directly.
+- Claude Code 2.1.309 (strings in the installed `claude.exe`):
+  - `get_usage` answers from the saved response if it is less than 60 seconds old. Otherwise it requests `GET /api/oauth/usage` with the same login.
+  - A successful response is saved as `cachedUsageUtilization` (`fetchedAtMs`, `accountUuid`, `utilization`) in the global configuration, at most one time each minute. Claude Code uses the copy for up to 1 hour, and ignores it if `accountUuid` is not the signed-in account.
+  - After HTTP 429 or 403, the CLI sends no request with the same token until the `Retry-After` time.
+- This computer: `cachedUsageUtilization` was from 11:00 PM and 2.5 hours old at 1:30 AM, while T3 Code was running. The installed Lidget logged HTTP 429 at 12:01 AM and 1:31 AM.
+  Finding: the CLI that T3 Code starts and Lidget use the same login.
+  The requests of one client can make the endpoint refuse the others.
+- Live check: a temporary .NET file-based app ran `ClaudeCodeUsageCache` on the real `~/.claude.json`. With the system clock, it gave no reading, because the copy was older than 1 hour. With a clock 1 minute after `fetchedAtMs`, it read session 0% and weekly 0% in 4 ms.
+- Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 202 tests.

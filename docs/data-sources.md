@@ -10,7 +10,8 @@ Lidget does not send data to a server other than the providers and GitHub.
 
 | Source | When | Notes |
 | --- | --- | --- |
-| `https://api.anthropic.com/api/oauth/usage` | At each refresh, except when a feed has current values | Uses the Claude Code login in `~/.claude/.credentials.json`. Anthropic does not document this endpoint, and can change it without notice. |
+| `https://api.anthropic.com/api/oauth/usage` | At a refresh, when no source has a recent response. See [Usage endpoint requests](#usage-endpoint-requests). | Uses the Claude Code login in `~/.claude/.credentials.json`. Anthropic does not document this endpoint, and can change it without notice. |
+| The usage response that Claude Code saved, in `~/.claude.json` | At each refresh | Each Claude Code process saves its last successful usage request as `cachedUsageUtilization`. This includes the CLI that T3 Code starts to check the limits. Lidget uses a copy that is less than 1 hour old and that belongs to the signed-in account. The key is undocumented, and Lidget only reads the file. |
 | T3 Code provider logs, `~/.t3/userdata/logs/provider/events.*.log` | When the logs change, if **Read limits from T3 Code** is on (default) | Lidget reads only the `rate_limit_event` entries of Claude sessions. It ignores all other log content. |
 | The Claude Code statusline, through `lidget-statusline.exe` | After each Claude Code response in a terminal, if **Read limits from the Claude Code statusline** is on | Lidget edits only the `statusLine` key in `~/.claude/settings.json`. |
 | Session logs in `~/.claude/projects` | At each refresh, and when the flyout opens | Lidget calculates the cost estimates from these logs. |
@@ -18,13 +19,17 @@ Lidget does not send data to a server other than the providers and GitHub.
 ### Usage endpoint requests
 
 Anthropic limits the number of requests to the usage endpoint.
+Lidget, Claude Code, and the CLI that T3 Code starts every 5 minutes send these requests with the same login.
+A wait that the endpoint asks for can come from a request of any of them.
 Lidget uses these rules to send as few requests as possible:
 
+- A recent response is the last successful response to Lidget, or the response that Claude Code saved, whichever is newer.
+- If the recent response is less than 15 minutes old, Lidget skips the request.
 - A feed reading is current for 10 minutes.
-- If a feed has a current session reading and a current weekly reading, Lidget skips the request.
-  Lidget still sends a request if the last successful response is 1 hour old, because the endpoint can report more limits.
+  Feeds can have a current session reading and a current weekly reading.
+  Then Lidget waits until the recent response is 1 hour old, because the endpoint can report more limits.
 - After HTTP 429, Lidget sends no request until the `Retry-After` time. Without that header, Lidget waits 15 minutes.
-- If the endpoint fails, current feed readings keep the provider status OK.
+- If the endpoint fails, the response that Claude Code saved, or current feed readings, keep the provider status OK.
   Older readings stay visible, with the error message.
 
 For each limit, the newest reading from any source wins.

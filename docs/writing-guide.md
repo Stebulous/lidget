@@ -54,6 +54,7 @@ Do not change the words of this text:
 | Used share | The percentage of a limit that is used, from 0% to 100%. |
 | Share that is left | 100% minus the used share. Lidget shows this value by default. |
 | Usage endpoint | `https://api.anthropic.com/api/oauth/usage`, the Claude limit source that Lidget requests. |
+| Saved response | The last usage response that Claude Code saved in `~/.claude.json`. Lidget reads it as a source, and it delays the next endpoint request. |
 | Feed | A local source of Claude readings that arrive while you work: the statusline feed or the T3 Code feed. |
 | Statusline feed | The optional wrapper around the Claude Code statusline command. It records the limits that Claude Code sends to the command. |
 | T3 Code feed | The Claude limits that Lidget reads from the T3 Code provider logs. |

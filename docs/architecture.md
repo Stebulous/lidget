@@ -37,16 +37,19 @@ The wait doubles after each 429, up to 1 hour, and is never shorter than the `Re
 
 ## Claude provider
 
-`ClaudeProvider` combines three sources. For each limit, the newest reading wins.
+`ClaudeProvider` combines four sources. For each limit, the newest reading wins.
 
 | Class | Source |
 | --- | --- |
 | `ClaudeUsageClient` and `ClaudeUsageMapper` | The usage endpoint |
+| `ClaudeCodeUsageCache` | The usage response that Claude Code saved in `~/.claude.json` |
 | `ClaudeT3CodeSource` | The T3 Code provider logs |
 | `ClaudeStatusLineSource` | `claude-statusline.json`, which `lidget-statusline.exe` writes |
 
 Both feeds implement `IClaudeLimitFeed`.
-`ClaudeProvider` skips the endpoint while the feeds have current readings, and while a `Retry-After` time is in the future.
+`ClaudeCodeUsageCache` is not a feed: it gives a full usage response, like the endpoint, and `ClaudeUsageMapper` maps both.
+`ClaudeProvider` skips the endpoint while a recent response or current feed readings exist.
+It also skips the endpoint while a `Retry-After` time is in the future.
 [Data sources and files](data-sources.md#usage-endpoint-requests) gives the exact rules.
 
 `ClaudeCredentialStore` reads `~/.claude/.credentials.json` and refreshes the access token.

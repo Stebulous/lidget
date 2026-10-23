@@ -10,11 +10,11 @@ public static class ClaudeUsageMapper
     public const string SessionId = "claude.session";
     public const string WeeklyId = "claude.weekly";
 
-    public static IReadOnlyList<LimitWindow> Map(JsonElement body, DateTimeOffset observedAt)
+    public static IReadOnlyList<LimitWindow> Map(JsonElement body, DateTimeOffset observedAt, string source = "endpoint")
     {
         // The `limits` array is the current form. The legacy keys are a fallback for older responses.
-        var limits = MapLimitsArray(body, observedAt);
-        return limits.Count > 0 ? limits : MapLegacyKeys(body, observedAt);
+        var limits = MapLimitsArray(body, observedAt, source);
+        return limits.Count > 0 ? limits : MapLegacyKeys(body, observedAt, source);
     }
 
     public static string? FormatPlan(string? subscriptionType, string? rateLimitTier)
@@ -29,7 +29,7 @@ public static class ClaudeUsageMapper
         return string.IsNullOrEmpty(multiplier) ? plan : $"{plan} {multiplier}";
     }
 
-    private static List<LimitWindow> MapLimitsArray(JsonElement body, DateTimeOffset observedAt)
+    private static List<LimitWindow> MapLimitsArray(JsonElement body, DateTimeOffset observedAt, string source)
     {
         var result = new List<LimitWindow>();
         if (!body.TryGetProperty("limits", out var limits) || limits.ValueKind != JsonValueKind.Array)
@@ -48,10 +48,10 @@ public static class ClaudeUsageMapper
             switch (ReadString(entry, "kind"))
             {
                 case "session":
-                    result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", percent, resetsAt, "endpoint", observedAt));
+                    result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", percent, resetsAt, source, observedAt));
                     break;
                 case "weekly_all":
-                    result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", percent, resetsAt, "endpoint", observedAt));
+                    result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", percent, resetsAt, source, observedAt));
                     break;
                 case "weekly_scoped" when ScopedModelName(entry) is { } model:
                     result.Add(new LimitWindow(
@@ -60,7 +60,7 @@ public static class ClaudeUsageMapper
                         $"Weekly ({model})",
                         percent,
                         resetsAt,
-                        "endpoint",
+                        source,
                         observedAt));
                     break;
             }
@@ -69,17 +69,17 @@ public static class ClaudeUsageMapper
         return result;
     }
 
-    private static List<LimitWindow> MapLegacyKeys(JsonElement body, DateTimeOffset observedAt)
+    private static List<LimitWindow> MapLegacyKeys(JsonElement body, DateTimeOffset observedAt, string source)
     {
         var result = new List<LimitWindow>();
         if (Window(body, "five_hour") is { } session)
         {
-            result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", session.Used, session.ResetsAt, "endpoint", observedAt));
+            result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", session.Used, session.ResetsAt, source, observedAt));
         }
 
         if (Window(body, "seven_day") is { } weekly)
         {
-            result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", weekly.Used, weekly.ResetsAt, "endpoint", observedAt));
+            result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", weekly.Used, weekly.ResetsAt, source, observedAt));
         }
 
         return result;
