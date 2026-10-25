@@ -60,6 +60,13 @@ public class ClaudeLogScannerTests
     }
 
     [Fact]
+    public void ParsesUsageWithJsonWhitespace()
+    {
+        var line = Line().Replace("\"usage\":{", "\"usage\" : \t{");
+        Assert.Single(Parse(line));
+    }
+
+    [Fact]
     public void ParsesTokenBucketsAndSpeed()
     {
         var entry = Assert.Single(Parse(Line(edit: root =>

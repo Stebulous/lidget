@@ -210,7 +210,7 @@ public sealed class ClaudeLogScanner : ICostSource
 public sealed class ClaudeLogParser : LogParser<ClaudeUsageEntry, ClaudeLogParser.State>
 {
     private static readonly byte[] UsageMarker = """
-        "usage":{
+        "usage"
         """u8.ToArray();
 
     /// <summary>Claude records are independent, so the parser keeps no state.</summary>

@@ -52,6 +52,13 @@ Lidget does not write to Codex files.
 If the npm `codex.cmd` shim is on `PATH`, Lidget starts the native `codex.exe` from the npm package.
 If the app-server stops, Lidget starts it again after 2 seconds, 10 seconds, 60 seconds, and then 5 minutes.
 
+## Cost log scanning
+
+Both cost scanners cache complete log lines and read appended lines on later scans.
+They reuse read buffers and check cancellation between lines and read blocks.
+An interrupted file scan leaves its cached entries and read position unchanged, so the next scan can retry it.
+The Claude scanner accepts JSON whitespace around the `usage` field separator.
+
 ## Configuration folders
 
 | Variable | Effect |

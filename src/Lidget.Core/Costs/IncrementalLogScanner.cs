@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -51,7 +52,7 @@ public sealed class IncrementalLogScanner<TEntry, TState>(
             present.Add(path);
             try
             {
-                UpdateFile(path, known.GetValueOrDefault(path));
+                UpdateFile(path, known.GetValueOrDefault(path), ct);
             }
             catch (IOException ex)
             {
@@ -85,7 +86,7 @@ public sealed class IncrementalLogScanner<TEntry, TState>(
         return entries;
     }
 
-    private void UpdateFile(string path, LogFileState? previous)
+    private void UpdateFile(string path, LogFileState? previous, CancellationToken ct)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
         var length = stream.Length;
@@ -106,7 +107,8 @@ public sealed class IncrementalLogScanner<TEntry, TState>(
             : JsonSerializer.Deserialize<TState>(previous.ParserState, CostJson.Options) ?? parser.CreateState();
 
         var parsed = new List<TEntry>();
-        var newOffset = ReadLines(stream, offset, length, state, parsed);
+        var newOffset = ReadLines(stream, offset, length, state, parsed, ct);
+        ct.ThrowIfCancellationRequested();
 
         var payloads = parsed
             .Select(entry => (parser.TimestampOf(entry).ToUnixTimeMilliseconds(), JsonSerializer.Serialize(entry, CostJson.Options)))
@@ -121,16 +123,29 @@ public sealed class IncrementalLogScanner<TEntry, TState>(
     }
 
     /// <summary>Parses the complete lines between <paramref name="start"/> and <paramref name="end"/>. Returns the offset after the last newline.</summary>
-    private long ReadLines(FileStream stream, long start, long end, TState state, List<TEntry> entries)
+    private long ReadLines(FileStream stream, long start, long end, TState state, List<TEntry> entries, CancellationToken ct)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+        try
+        {
+            return ReadLines(stream, start, end, state, entries, ct, buffer);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
+    }
+
+    private long ReadLines(FileStream stream, long start, long end, TState state, List<TEntry> entries, CancellationToken ct, byte[] buffer)
     {
         stream.Position = start;
-        var buffer = new byte[BufferSize];
         var carry = new List<byte>();
         var consumed = start;
         var position = start;
 
         while (position < end)
         {
+            ct.ThrowIfCancellationRequested();
             var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, end - position));
             if (read <= 0)
             {
@@ -141,16 +156,17 @@ public sealed class IncrementalLogScanner<TEntry, TState>(
             var span = buffer.AsSpan(0, read);
             while (true)
             {
+                ct.ThrowIfCancellationRequested();
                 var newline = span.IndexOf((byte)'\n');
                 if (newline < 0)
                 {
-                    carry.AddRange(span.ToArray());
+                    carry.AddRange(span);
                     break;
                 }
 
                 if (carry.Count > 0)
                 {
-                    carry.AddRange(span[..newline].ToArray());
+                    carry.AddRange(span[..newline]);
                     Parse(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(carry), state, entries);
                     consumed += carry.Count + 1;
                     carry.Clear();
