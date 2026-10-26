@@ -191,7 +191,16 @@ public sealed partial class ProviderViewModel : ObservableObject
         UpdatedText = _snapshot is { } snapshot && HasData ? $"Updated {UsageFormat.Ago(snapshot.UpdatedAt, now)}" : string.Empty;
 
         var lines = new List<string> { PlanName is null ? DisplayName : $"{DisplayName} {PlanName}" };
-        lines.AddRange(Limits.Select(l => l.HasPace ? $"{l.Label}: {l.PercentText} · {l.ResetText} · {l.PaceText}" : $"{l.Label}: {l.PercentText} · {l.ResetText}"));
+        foreach (var limit in Limits)
+        {
+            lines.Add($"{limit.Label}: {limit.PercentText} · {limit.ResetText}");
+            if (limit.HasPace)
+            {
+                // An indented line of its own, so that the tooltip does not wrap the pace inside a line.
+                lines.Add($"    {limit.PaceText}");
+            }
+        }
+
         if (HasProblem)
         {
             lines.Add(StatusMessage!);
