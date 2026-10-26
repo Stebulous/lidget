@@ -893,3 +893,18 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - Not run, because this release does not change them: the Explorer restart, the display scales, the taskbar alignment, and auto-hide.
   Also not run: the statusline feed, the saved response, and the uninstall.
 - Open gates: the notification checks and the one-week check, which need time. The update from the published GitHub release.
+
+### 2026-10-26 — Release 0.2.0 and the update from GitHub (revision `7c70c63`)
+
+- CI passed on `7c70c63`. The tag `v0.2.0` started the **Release** workflow, which passed.
+  The draft had the full package, a delta package from `0.1.1`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
+- Draft check: `Lidget-0.2.0-full.nupkg` has `Lidget.exe` with the version `0.2.0+7c70c63` and `lidget-statusline.exe`. The draft installer was not installed, because the update check below installs the same package.
+- The maintainer published the release at 2:49 AM as the latest release.
+- Update: the installed `0.2.0-local.2` started from the Start menu shortcut at 2:49 AM, and downloaded `0.2.0` from GitHub in 6 seconds.
+  It logged "Update 0.2.0 is ready for the next start".
+  The next start, at 2:54 AM, ran `0.2.0+7c70c63`, embedded the widget, and restored the saved Claude usage wait. The `Run` value points to `current\Lidget.exe`.
+- Screenshots: `docs/images/widget.png` and `docs/images/flyout.png` come from the installed `0.2.0`, with the dark theme.
+  The flyout shows a deficit with a run-out time, a reserve, and "On pace".
+- Display scale: 125% (120 DPI). The two earlier entries of 2026-10-26 say 100%, but no check measured the scale. It was probably 125% also.
+- This closes the open gate "The update from the published GitHub release".
+- Open gates: the notification checks and the one-week check, which need time.
