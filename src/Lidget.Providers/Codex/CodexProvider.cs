@@ -68,7 +68,7 @@ public sealed class CodexProvider : IUsageProvider
                 }
 
                 var result = await client.RequestAsync("account/rateLimits/read", new JsonObject { ["excludeResetCreditDetails"] = true }, ct).ConfigureAwait(false);
-                if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("rateLimits", out var rateLimits) || rateLimits.ValueKind != JsonValueKind.Object)
+                if (CodexRateLimitMapper.MainSnapshot(result) is not { } rateLimits)
                 {
                     _logger.LogWarning("codex app-server returned rate limits in an unknown format");
                     return Failed(ProviderStatus.Error, "Codex returned rate limits that Lidget cannot read.");
@@ -190,6 +190,12 @@ public sealed class CodexProvider : IUsageProvider
     {
         if (method != "account/rateLimits/updated" || parameters.ValueKind != JsonValueKind.Object
             || !parameters.TryGetProperty("rateLimits", out var update) || update.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        // A model limit must not replace the plan allowance.
+        if (!CodexRateLimitMapper.IsMainSnapshot(update))
         {
             return;
         }

@@ -85,6 +85,44 @@ public class CodexProviderTests
     }
 
     [Fact]
+    public async Task ModelLimitUpdateIsIgnored()
+    {
+        await using var provider = CreateProvider();
+        var pushed = 0;
+        provider.SnapshotPushed += (_, _) => pushed++;
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _transports[0].Notify("account/rateLimits/updated", """
+            {"rateLimits":{"limitId":"codex_other","primary":{"usedPercent":3,"windowDurationMins":300,"resetsAt":1792663869},"secondary":null,"planType":null}}
+            """);
+
+        Assert.Equal(0, pushed);
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(86, snapshot.Limits[0].UsedPercent);
+    }
+
+    [Fact]
+    public async Task ReadUsesTheCodexBucket()
+    {
+        _transportFactory = () => new FakeCodexTransport((method, _) => method switch
+        {
+            "account/rateLimits/read" => JsonNode.Parse("""
+                {"rateLimits":{"limitId":"codex_other","primary":{"usedPercent":3,"windowDurationMins":300}},
+                 "rateLimitsByLimitId":{
+                   "codex_other":{"limitId":"codex_other","primary":{"usedPercent":3,"windowDurationMins":300}},
+                   "codex":{"limitId":"codex","primary":{"usedPercent":64,"windowDurationMins":300},"planType":"pro"}}}
+                """),
+            _ => FakeCodexTransport.TranscriptResult(method),
+        });
+        await using var provider = CreateProvider();
+
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(64, Assert.Single(snapshot.Limits).UsedPercent);
+        Assert.Equal("Pro", snapshot.PlanName);
+    }
+
+    [Fact]
     public async Task UnknownNotificationsAreIgnored()
     {
         await using var provider = CreateProvider();

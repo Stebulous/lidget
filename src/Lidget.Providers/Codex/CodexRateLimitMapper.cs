@@ -11,8 +11,35 @@ public static class CodexRateLimitMapper
     public const string SessionId = "codex.session";
     public const string WeeklyId = "codex.weekly";
 
+    /// <summary>The <c>limitId</c> of the plan allowance. Other IDs are limits for one model.</summary>
+    public const string MainLimitId = "codex";
+
     private const int SessionMinutes = 300;
     private const int WeeklyMinutes = 10080;
+
+    /// <summary>
+    /// Selects the plan allowance in an <c>account/rateLimits/read</c> result: <c>rateLimitsByLimitId.codex</c>, or
+    /// <c>rateLimits</c> from servers without buckets. <c>rateLimits</c> is a single-bucket view that can show another bucket.
+    /// </summary>
+    public static JsonElement? MainSnapshot(JsonElement result)
+    {
+        if (result.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (result.TryGetProperty("rateLimitsByLimitId", out var buckets) && buckets.ValueKind == JsonValueKind.Object
+            && buckets.TryGetProperty(MainLimitId, out var main) && main.ValueKind == JsonValueKind.Object)
+        {
+            return main;
+        }
+
+        return result.TryGetProperty("rateLimits", out var rateLimits) && rateLimits.ValueKind == JsonValueKind.Object ? rateLimits : null;
+    }
+
+    /// <summary>Whether a snapshot is the plan allowance. Older servers send no <c>limitId</c>.</summary>
+    public static bool IsMainSnapshot(JsonElement snapshot) =>
+        !snapshot.TryGetProperty("limitId", out var id) || id.ValueKind != JsonValueKind.String || id.ValueEquals(MainLimitId);
 
     /// <summary>
     /// Merges a sparse <c>account/rateLimits/updated</c> snapshot into the last full one: values that the

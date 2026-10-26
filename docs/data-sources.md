@@ -45,7 +45,7 @@ Lidget keeps all other fields of that file unchanged.
 
 | Source | When | Notes |
 | --- | --- | --- |
-| `codex app-server`, started from the Codex CLI | At each refresh, and when the app-server sends a rate limit notification | Lidget reads the rate limits of the signed-in ChatGPT account. The Codex CLI owns its login and token refresh. |
+| `codex app-server`, started from the Codex CLI | At each refresh, and when the app-server sends a rate limit notification | Lidget reads the rate limits of the signed-in ChatGPT account. The Codex CLI owns its login and token refresh. Lidget shows the plan allowance, with the limit ID `codex`, and ignores the limits for one model. |
 | Session logs in `~/.codex/sessions` and `~/.codex/archived_sessions` | At each refresh, and when the flyout opens | Lidget calculates the cost estimates from these logs. |
 
 Lidget does not write to Codex files.
