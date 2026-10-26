@@ -888,3 +888,20 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
     It showed "26% in reserve" for the Claude weekly limit, "On pace" for the Codex session, and "9% in reserve" for the Codex weekly limit.
 - Not checked live: the amber "Runs out in" text, and the markers on a light taskbar. Unit tests cover the run-out text.
 - Open gates: the QA checklist rows for the pace in the next release candidate.
+
+### 2026-10-26 — 0.2.0 release candidate QA (revisions `97ae0b0` and `6e1cd91`)
+
+- Install: `./scripts/pack.ps1 -Version 0.2.0-local.1` with a temporary output folder, then `Lidget-win-Setup.exe --silent` over the installed `0.1.1`.
+  The data folder was copied first. Settings and history stayed. The `Run` value and the Start menu shortcut stayed, and the desktop has no shortcut.
+- Passed on `0.2.0-local.1`, at 100% scale:
+  - Widget: the values and the pace markers showed within 10 seconds of the start from the Start menu. The menu, the tooltip, the light taskbar, and the pill with `LIDGET_FORCE_FALLBACK=1` were correct.
+  - Flyout: open and close by click and Esc, refresh, 24 h and 7 d, cost tiles, and the pace rows. The amber "Runs out in" text showed live.
+  - Settings: a provider off and on, **Show limits as** Used and back, **Show pace in the taskbar**, **Start with Windows**, and **Open data folder**.
+  - T3 Code feed: the Claude values changed while this session sent messages, with "Updated just now".
+- Findings, corrected in `0fa3112` and `6e1cd91`:
+  - The tooltip wrapped the pace text inside a limit line.
+  - Screen readers read the combo box items as record text, and the **Open data folder** button had no name.
+- `0.2.0-local.2` showed the corrected tooltip and names. `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 226 tests.
+- Not run, because this release does not change them: the Explorer restart, the display scales, the taskbar alignment, and auto-hide.
+  Also not run: the statusline feed, the saved response, and the uninstall.
+- Open gates: the notification checks and the one-week check, which need time. The update from the published GitHub release.
