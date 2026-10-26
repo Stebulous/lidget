@@ -54,6 +54,14 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
 
+        <Style x:Key="PaceCaption" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RunsOutBeforeReset}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="CostTile" TargetType="Border">
             <Setter Property="Padding" Value="10,6,10,8" />
             <Setter Property="CornerRadius" Value="6" />
@@ -79,15 +87,27 @@
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     <TextBlock Text="{Binding Label}" FontSize="13" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                 </DockPanel>
-                <Grid Grid.Row="1" Height="6" Margin="0,6,0,0">
+                <Grid Grid.Row="1" Height="12" Margin="0,3,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding BarPercent, Converter={StaticResource PercentToStar}}" />
                         <ColumnDefinition Width="{Binding BarPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
                     </Grid.ColumnDefinitions>
-                    <Border Grid.ColumnSpan="2" CornerRadius="3" Background="{DynamicResource ControlStrongFillColorDisabledBrush}" />
-                    <Border CornerRadius="3" Style="{StaticResource SeverityFill}" />
+                    <Border Grid.ColumnSpan="2" Height="6" CornerRadius="3" Background="{DynamicResource ControlStrongFillColorDisabledBrush}" />
+                    <Border Height="6" CornerRadius="3" Style="{StaticResource SeverityFill}" />
+                    <!-- The even-pace marker. The outer margins let its center reach both ends of the bar. -->
+                    <Grid Grid.ColumnSpan="2" Margin="-1,0" Visibility="{Binding HasPace, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{Binding PacePercent, Converter={StaticResource PercentToStar}}" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="{Binding PacePercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="1" Width="2" CornerRadius="1" Background="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </Grid>
                 </Grid>
-                <TextBlock Grid.Row="2" Margin="0,4,0,0" Text="{Binding ResetText}" Style="{StaticResource Caption}" />
+                <DockPanel Grid.Row="2" Margin="0,1,0,0">
+                    <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding PaceText}" Style="{StaticResource PaceCaption}" />
+                    <TextBlock Text="{Binding ResetText}" TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}" />
+                </DockPanel>
             </Grid>
         </DataTemplate>
 

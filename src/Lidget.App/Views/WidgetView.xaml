@@ -14,6 +14,7 @@
              UseLayoutRounding="True">
     <UserControl.Resources>
         <views:PercentToStarConverter x:Key="PercentToStar" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
         <Style x:Key="SeverityFill" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource Taskbar.Severity.Normal}" />
@@ -91,13 +92,22 @@
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                            Foreground="{DynamicResource Taskbar.Severity.Warning}" />
                             </Grid>
-                            <Grid Width="26" Height="4" Margin="7,0,6,0" VerticalAlignment="Center">
+                            <Grid Width="26" Height="10" Margin="7,0,6,0" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}}" />
                                     <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{DynamicResource Taskbar.Track}" />
-                                <Border Grid.Column="0" CornerRadius="2" Style="{StaticResource SeverityFill}" />
+                                <Border Grid.ColumnSpan="2" Height="4" CornerRadius="2" Background="{DynamicResource Taskbar.Track}" />
+                                <Border Grid.Column="0" Height="4" CornerRadius="2" Style="{StaticResource SeverityFill}" />
+                                <!-- The even-pace marker. The outer margins let its center reach both ends of the bar. -->
+                                <Grid Grid.ColumnSpan="2" Margin="-1,0" Visibility="{Binding WidgetHasPace, Converter={StaticResource BoolToVisibility}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}}" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="1" Width="2" CornerRadius="1" Background="{DynamicResource Taskbar.Foreground}" />
+                                </Grid>
                             </Grid>
                             <TextBlock Text="{Binding WidgetText}" MinWidth="26" VerticalAlignment="Center"
                                        Foreground="{DynamicResource Taskbar.Foreground}" />

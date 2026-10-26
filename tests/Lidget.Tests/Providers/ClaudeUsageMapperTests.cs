@@ -26,10 +26,12 @@ public class ClaudeUsageMapperTests
         Assert.Equal(38, session.UsedPercent);
         Assert.Equal(new DateTimeOffset(2026, 10, 22, 8, 19, 59, TimeSpan.Zero), session.ResetsAt!.Value.AddTicks(-(session.ResetsAt.Value.Ticks % TimeSpan.TicksPerSecond)));
         Assert.Equal("endpoint", session.Source);
+        Assert.Equal(TimeSpan.FromHours(5), session.Duration);
 
         var weekly = limits[1];
         Assert.Equal(LimitKind.Weekly, weekly.Kind);
         Assert.Equal(52, weekly.UsedPercent);
+        Assert.Equal(TimeSpan.FromDays(7), weekly.Duration);
     }
 
     [Fact]
@@ -42,6 +44,7 @@ public class ClaudeUsageMapperTests
 
         Assert.Equal([LimitKind.Session, LimitKind.Weekly], limits.Select(l => l.Kind));
         Assert.Equal(12.5, limits[0].UsedPercent);
+        Assert.Equal([TimeSpan.FromHours(5), TimeSpan.FromDays(7)], limits.Select(l => l.Duration!.Value));
     }
 
     [Fact]
@@ -59,6 +62,7 @@ public class ClaudeUsageMapperTests
         Assert.Equal("claude.weekly.fable", limits[1].Id);
         Assert.Equal("Weekly (Fable)", limits[1].Label);
         Assert.Equal(LimitKind.Other, limits[1].Kind);
+        Assert.Equal(TimeSpan.FromDays(7), limits[1].Duration);
     }
 
     [Fact]

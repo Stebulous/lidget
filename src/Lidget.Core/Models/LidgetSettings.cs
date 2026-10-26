@@ -32,6 +32,9 @@ public sealed record LidgetSettings
 
     public UsageDisplay UsageDisplay { get; init; } = UsageDisplay.Remaining;
 
+    /// <summary>Whether the taskbar widget marks the even-pace point on its bar. The flyout always shows the pace.</summary>
+    public bool ShowPaceInTaskbar { get; init; } = true;
+
     /// <summary>Used percentages that trigger a notification, in ascending order.</summary>
     public IReadOnlyList<int> NotificationThresholds { get; init; } = [80, 95];
 

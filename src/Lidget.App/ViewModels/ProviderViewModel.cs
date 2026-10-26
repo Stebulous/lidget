@@ -12,6 +12,7 @@ public sealed partial class ProviderViewModel : ObservableObject
     private ProviderSnapshot? _snapshot;
     private WidgetMetric _metric;
     private UsageDisplay _display;
+    private bool _showPace;
 
     public ProviderViewModel(string id, string displayName)
     {
@@ -58,6 +59,14 @@ public sealed partial class ProviderViewModel : ObservableObject
 
     [ObservableProperty]
     public partial UsageSeverity WidgetSeverity { get; set; }
+
+    /// <summary>Whether the widget bar shows the even-pace marker.</summary>
+    [ObservableProperty]
+    public partial bool WidgetHasPace { get; set; }
+
+    /// <summary>The position of the widget pace marker, from 0 to 100, in the same display mode as the bar.</summary>
+    [ObservableProperty]
+    public partial double WidgetPacePercent { get; set; }
 
     [ObservableProperty]
     public partial string WidgetTooltip { get; set; } = string.Empty;
@@ -118,7 +127,6 @@ public sealed partial class ProviderViewModel : ObservableObject
             Limits.RemoveAt(Limits.Count - 1);
         }
 
-        UpdateWidget();
         Tick(now);
     }
 
@@ -134,22 +142,24 @@ public sealed partial class ProviderViewModel : ObservableObject
             : "API-equivalent estimate from local session logs";
     }
 
-    /// <summary>Applies the widget metric and the display mode, and shows the current data with them.</summary>
-    public void ApplySettings(WidgetMetric metric, UsageDisplay display, DateTimeOffset now)
+    /// <summary>Applies the widget metric, the display mode, and the pace setting, and shows the current data with them.</summary>
+    public void ApplySettings(WidgetMetric metric, UsageDisplay display, bool showPace, DateTimeOffset now)
     {
         _metric = metric;
         _display = display;
+        _showPace = showPace;
         if (_snapshot is { } snapshot)
         {
             Apply(snapshot, now);
         }
         else
         {
-            UpdateWidget();
+            UpdateWidget(now);
         }
     }
 
-    private void UpdateWidget()
+    /// <summary>Updates the widget values. The pace marker moves with time, so <see cref="Tick"/> calls this too.</summary>
+    private void UpdateWidget(DateTimeOffset now)
     {
         var selected = _snapshot?.SelectLimit(_metric);
         if (selected is null)
@@ -157,12 +167,17 @@ public sealed partial class ProviderViewModel : ObservableObject
             WidgetPercent = 0;
             WidgetText = "–";
             WidgetSeverity = UsageSeverity.Normal;
+            WidgetHasPace = false;
             return;
         }
 
         WidgetPercent = UsageFormat.DisplayPercent(selected.UsedPercent, _display);
         WidgetText = UsageFormat.Percent(WidgetPercent);
         WidgetSeverity = UsageFormat.Severity(selected.UsedPercent);
+
+        var pace = _showPace ? UsagePace.Calculate(selected, now) : null;
+        WidgetHasPace = pace is not null;
+        WidgetPacePercent = pace is null ? 0 : UsageFormat.DisplayPercent(pace.ExpectedPercent, _display);
     }
 
     public void Tick(DateTimeOffset now)
@@ -172,10 +187,11 @@ public sealed partial class ProviderViewModel : ObservableObject
             limit.Tick(now);
         }
 
+        UpdateWidget(now);
         UpdatedText = _snapshot is { } snapshot && HasData ? $"Updated {UsageFormat.Ago(snapshot.UpdatedAt, now)}" : string.Empty;
 
         var lines = new List<string> { PlanName is null ? DisplayName : $"{DisplayName} {PlanName}" };
-        lines.AddRange(Limits.Select(l => $"{l.Label}: {l.PercentText} · {l.ResetText}"));
+        lines.AddRange(Limits.Select(l => l.HasPace ? $"{l.Label}: {l.PercentText} · {l.ResetText} · {l.PaceText}" : $"{l.Label}: {l.PercentText} · {l.ResetText}"));
         if (HasProblem)
         {
             lines.Add(StatusMessage!);

@@ -277,7 +277,10 @@ public sealed class ClaudeT3CodeSource : IClaudeLimitFeed, IDisposable
         }
 
         var percent = Math.Round(utilization.GetDouble() * 100, 2);
-        result.Add(new LimitWindow(t.Id, t.Kind, t.Label, percent, resetsAt, SourceName, observedAt));
+        result.Add(new LimitWindow(t.Id, t.Kind, t.Label, percent, resetsAt, SourceName, observedAt)
+        {
+            Duration = t.Kind == LimitKind.Session ? LimitWindow.SessionDuration : LimitWindow.WeeklyDuration,
+        });
     }
 
     private static JsonElement? FindRateLimitInfo(JsonElement element, int depth)

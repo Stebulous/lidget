@@ -131,7 +131,7 @@ public sealed partial class UsageViewModel : ObservableObject, IDisposable
         foreach (var provider in Providers)
         {
             provider.IsEnabled = settings.IsProviderEnabled(provider.Id);
-            provider.ApplySettings(settings.WidgetMetric, settings.UsageDisplay, _time.GetUtcNow());
+            provider.ApplySettings(settings.WidgetMetric, settings.UsageDisplay, settings.ShowPaceInTaskbar, _time.GetUtcNow());
             if (provider.IsEnabled)
             {
                 VisibleProviders.Add(provider);

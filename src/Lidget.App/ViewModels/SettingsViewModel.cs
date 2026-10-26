@@ -66,6 +66,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial DisplayOption? SelectedDisplay { get; set; }
 
     [ObservableProperty]
+    public partial bool ShowPaceInTaskbar { get; set; }
+
+    [ObservableProperty]
     public partial double RefreshIntervalMinutes { get; set; }
 
     [ObservableProperty]
@@ -103,6 +106,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         CodexEnabled = s.CodexEnabled;
         SelectedMetric = MetricOptions.First(o => o.Value == s.WidgetMetric);
         SelectedDisplay = DisplayOptions.First(o => o.Value == s.UsageDisplay);
+        ShowPaceInTaskbar = s.ShowPaceInTaskbar;
         RefreshIntervalMinutes = s.RefreshIntervalMinutes;
         ThresholdsText = string.Join(", ", s.NotificationThresholds);
         NotifyOnReset = s.NotifyOnReset;
@@ -141,6 +145,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             Save(s => s with { UsageDisplay = value.Value });
         }
     }
+
+    partial void OnShowPaceInTaskbarChanged(bool value) => Save(s => s with { ShowPaceInTaskbar = value });
 
     partial void OnRefreshIntervalMinutesChanged(double value) => Save(s => s with { RefreshIntervalMinutes = (int)Math.Round(value) });
 

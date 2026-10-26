@@ -73,6 +73,19 @@ public static class UsageFormat
     public static string ResetText(DateTimeOffset? resetsAt, DateTimeOffset now) =>
         resetsAt is { } reset ? $"Resets in {Countdown(reset - now)}" : "Reset time unknown";
 
+    /// <summary>
+    /// The pace of a limit, for example "On pace", "10% in reserve", or "12% in deficit · Runs out in 1h 40m".
+    /// The words have the same meaning in both display modes.
+    /// </summary>
+    public static string PaceText(UsagePace pace, DateTimeOffset now) => pace switch
+    {
+        { RunsOutAt: { } at } when at <= now => "Limit reached",
+        { Status: PaceStatus.Reserve } => $"{Percent(-pace.DeltaPercent)} in reserve",
+        { Status: PaceStatus.Deficit, RunsOutAt: { } at } => $"{Percent(pace.DeltaPercent)} in deficit · Runs out in {Countdown(at - now)}",
+        { Status: PaceStatus.Deficit } => $"{Percent(pace.DeltaPercent)} in deficit",
+        _ => "On pace",
+    };
+
     public static string Ago(DateTimeOffset at, DateTimeOffset now)
     {
         var elapsed = now - at;

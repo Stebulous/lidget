@@ -48,8 +48,10 @@ The widget shows one logo, bar, and percentage for each provider that is on.
   The color follows the used share in both display modes.
 - A gray bar means that Lidget has no data for the provider yet.
 - An exclamation mark on the logo means that the provider has a problem. The flyout shows the message.
+- A short vertical tick on the bar is the even-pace marker. See [Read the pace](#read-the-pace).
+  To remove it, turn off **Show pace in the taskbar** in Settings.
 
-Hover over the widget to see the plan, each limit, and each reset countdown.
+Hover over the widget to see the plan, each limit, each reset countdown, and each pace.
 Right-click the widget to open a menu with **Refresh**, **Settings**, and **Quit Lidget**.
 
 If Lidget cannot join the taskbar, or the widget would cover taskbar buttons, Lidget shows the widget in a pill.
@@ -67,6 +69,7 @@ For each provider, the flyout shows:
 - The plan, for example **Pro** or **Plus**, and the time of the last update.
 - The session limit and the weekly limit, with a bar, the percentage, and the reset countdown.
   "Not started" means that no request has started the limit window yet.
+- The pace of each limit, with a marker on the bar. See [Read the pace](#read-the-pace).
 - Cost estimates for today, the last 7 days, and the last 30 days.
   A cost estimate is the API price of the tokens in your local session logs. Your subscription price does not change.
 - A message, if the provider has a problem.
@@ -78,6 +81,29 @@ A dot is a single reading between two breaks.
 
 The refresh button reads all providers again. The settings button opens Settings.
 
+## Read the pace
+
+The pace compares the used share of a limit with the share of its limit window that has passed.
+Even pace uses the limit at the same rate for the full window, so that it runs out at the reset time.
+For example, 2 hours into a 5-hour session, even pace has used 40% of the limit.
+
+The marker on a bar shows the even-pace level, in the same display mode as the bar.
+With **Show limits as** set to Remaining, a bar that ends right of the marker has more left than even pace.
+
+The flyout shows one of these texts under each bar:
+
+| Text | Meaning |
+| --- | --- |
+| On pace | The used share is within 5 percentage points of even pace. |
+| 10% in reserve | The used share is 10 points less than even pace. |
+| 12% in deficit | The used share is 12 points more than even pace. |
+| 12% in deficit · Runs out in 1h 40m | At the average rate of this window, the limit runs out before it resets. The text is amber. |
+| Limit reached | The limit is used up. The text is amber. |
+
+Lidget shows no run-out time in the first 5% of a window, because a few requests do not give a useful rate.
+Lidget shows no pace for a limit without a reset time, for example a window that no request has started.
+Lidget also shows no pace when the window length is not known, for example a Codex Free plan limit without a reported length.
+
 ## Change settings
 
 Settings save at once. Open Settings from the widget menu or from the flyout.
@@ -87,6 +113,7 @@ Settings save at once. Open Settings from the widget menu or from the flyout.
 | **Claude**, **Codex** | On | Shows or hides the provider in the widget, the flyout, and the chart. |
 | **Show limits as** | Remaining | Shows the share that is left, or the used share. It applies to the widget, the flyout, the chart, and notifications. |
 | **Percentage in the taskbar** | Tightest limit | Selects the limit in the widget: the tightest limit, the session limit, or the weekly limit. |
+| **Show pace in the taskbar** | On | Shows the even-pace marker on the widget bars. The flyout always shows the pace. |
 | **Distance from the system tray** | 4 | Moves the widget left of the system tray, in device-independent pixels (0 to 400). |
 | **Refresh interval** | 5 minutes | Sets the time between refreshes, from 1 to 30 minutes. |
 | **Warn when usage passes these percentages** | 80, 95 | Sets the used percentages that show a notification. |

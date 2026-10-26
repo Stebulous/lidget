@@ -104,7 +104,10 @@ public sealed class ClaudeStatusLineSource : IClaudeLimitFeed, IDisposable
             return; // The window reset after this reading, so the reading no longer applies.
         }
 
-        result.Add(new LimitWindow(id, kind, label, used.GetDouble(), resetsAt, "statusline", observedAt));
+        result.Add(new LimitWindow(id, kind, label, used.GetDouble(), resetsAt, "statusline", observedAt)
+        {
+            Duration = kind == LimitKind.Session ? LimitWindow.SessionDuration : LimitWindow.WeeklyDuration,
+        });
     }
 
     public void Dispose()

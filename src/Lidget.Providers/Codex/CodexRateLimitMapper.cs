@@ -94,7 +94,25 @@ public static class CodexRateLimitMapper
             _ => ($"codex.{name}", LimitKind.Other, FormatDuration(minutes.Value)),
         };
 
-        result.Add(new LimitWindow(id, kind, label, used.GetDouble(), resetsAt, "app-server", observedAt));
+        result.Add(new LimitWindow(id, kind, label, used.GetDouble(), resetsAt, "app-server", observedAt)
+        {
+            Duration = minutes is { } m ? TimeSpan.FromMinutes(m) : FallbackDuration(snapshot, fallbackKind),
+        });
+    }
+
+    /// <summary>
+    /// The window length when Codex does not send <c>windowDurationMins</c>: the primary window is 5 hours and the
+    /// secondary window is 1 week. On the Free and Go plans the primary window is longer, so its length is not known.
+    /// </summary>
+    private static TimeSpan? FallbackDuration(JsonElement snapshot, LimitKind fallbackKind)
+    {
+        if (fallbackKind == LimitKind.Weekly)
+        {
+            return LimitWindow.WeeklyDuration;
+        }
+
+        var plan = snapshot.TryGetProperty("planType", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        return plan is "free" or "go" ? null : LimitWindow.SessionDuration;
     }
 
     private static string FormatDuration(int minutes) => minutes % 1440 == 0

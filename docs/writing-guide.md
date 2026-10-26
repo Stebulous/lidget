@@ -53,6 +53,8 @@ Do not change the words of this text:
 | Tightest limit | The limit with the highest used share. It is the limit that stops work first. |
 | Used share | The percentage of a limit that is used, from 0% to 100%. |
 | Share that is left | 100% minus the used share. Lidget shows this value by default. |
+| Even pace | A use of a limit at one rate for the full limit window, so that the limit runs out at the reset time. |
+| Pace | The used share minus the even-pace share at this time: in reserve, on pace, or in deficit. |
 | Usage endpoint | `https://api.anthropic.com/api/oauth/usage`, the Claude limit source that Lidget requests. |
 | Saved response | The last usage response that Claude Code saved in `~/.claude.json`. Lidget reads it as a source, and it delays the next endpoint request. |
 | Feed | A local source of Claude readings that arrive while you work: the statusline feed or the T3 Code feed. |

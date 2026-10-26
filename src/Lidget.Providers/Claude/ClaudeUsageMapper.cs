@@ -48,10 +48,10 @@ public static class ClaudeUsageMapper
             switch (ReadString(entry, "kind"))
             {
                 case "session":
-                    result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", percent, resetsAt, source, observedAt));
+                    result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", percent, resetsAt, source, observedAt) { Duration = LimitWindow.SessionDuration });
                     break;
                 case "weekly_all":
-                    result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", percent, resetsAt, source, observedAt));
+                    result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", percent, resetsAt, source, observedAt) { Duration = LimitWindow.WeeklyDuration });
                     break;
                 case "weekly_scoped" when ScopedModelName(entry) is { } model:
                     result.Add(new LimitWindow(
@@ -61,7 +61,7 @@ public static class ClaudeUsageMapper
                         percent,
                         resetsAt,
                         source,
-                        observedAt));
+                        observedAt) { Duration = LimitWindow.WeeklyDuration });
                     break;
             }
         }
@@ -74,12 +74,12 @@ public static class ClaudeUsageMapper
         var result = new List<LimitWindow>();
         if (Window(body, "five_hour") is { } session)
         {
-            result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", session.Used, session.ResetsAt, source, observedAt));
+            result.Add(new LimitWindow(SessionId, LimitKind.Session, "Session (5h)", session.Used, session.ResetsAt, source, observedAt) { Duration = LimitWindow.SessionDuration });
         }
 
         if (Window(body, "seven_day") is { } weekly)
         {
-            result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", weekly.Used, weekly.ResetsAt, source, observedAt));
+            result.Add(new LimitWindow(WeeklyId, LimitKind.Weekly, "Weekly", weekly.Used, weekly.ResetsAt, source, observedAt) { Duration = LimitWindow.WeeklyDuration });
         }
 
         return result;

@@ -28,7 +28,14 @@ public sealed record LimitWindow(
     double UsedPercent,
     DateTimeOffset? ResetsAt,
     string Source,
-    DateTimeOffset ObservedAt);
+    DateTimeOffset ObservedAt)
+{
+    public static readonly TimeSpan SessionDuration = TimeSpan.FromHours(5);
+    public static readonly TimeSpan WeeklyDuration = TimeSpan.FromDays(7);
+
+    /// <summary>The length of the limit window, or null when it is not known. Pacing needs it.</summary>
+    public TimeSpan? Duration { get; init; }
+}
 
 /// <summary>API-equivalent cost estimate from local session logs. Today and the 7 days and 30 days that end today.</summary>
 public sealed record CostSummary(decimal Today, decimal Last7Days, decimal Last30Days, string Currency)

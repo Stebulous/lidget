@@ -197,6 +197,21 @@ public class CodexProviderTests
 
         Assert.Equal(LimitKind.Other, limit.Kind);
         Assert.Equal("1-day window", limit.Label);
+        Assert.Equal(TimeSpan.FromDays(1), limit.Duration);
+    }
+
+    [Theory]
+    [InlineData("plus", 300.0, 10080.0)]
+    [InlineData("free", null, 10080.0)]
+    public void MissingWindowDurationFallsBackByPosition(string plan, double? primaryMinutes, double secondaryMinutes)
+    {
+        using var document = JsonDocument.Parse($$$"""{"planType":"{{{plan}}}","primary":{"usedPercent":5},"secondary":{"usedPercent":9}}""");
+
+        var limits = CodexRateLimitMapper.Map(document.RootElement, Now);
+
+        Assert.Equal(2, limits.Count);
+        Assert.Equal(primaryMinutes, limits[0].Duration?.TotalMinutes);
+        Assert.Equal(secondaryMinutes, limits[1].Duration?.TotalMinutes);
     }
 
     [Fact]

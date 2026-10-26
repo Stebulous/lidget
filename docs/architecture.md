@@ -32,6 +32,10 @@ A `LimitWindow` always stores the used share, from 0 to 100.
 The view models and `UsageFormat` change it to the share that is left when **Show limits as** is Remaining.
 Severity colors and notification thresholds always use the used share.
 
+A `LimitWindow` also stores the window length in `Duration`, when the provider mapper knows it.
+`UsagePace` uses the length and the reset time to compare the used share with even pace.
+`UsageFormat.PaceText` gives the pace text. The view models calculate the pace again at each tick, because it changes with time.
+
 After HTTP 429, the scheduler waits before the next refresh of that provider.
 The wait doubles after each 429, up to 1 hour, and is never shorter than the `Retry-After` time.
 

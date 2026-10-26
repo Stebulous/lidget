@@ -85,6 +85,16 @@
                     <ComboBox AutomationProperties.Name="Percentage in the taskbar" MinWidth="200" ItemsSource="{Binding MetricOptions}" DisplayMemberPath="Label"
                               SelectedItem="{Binding SelectedMetric}" />
                 </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Timer20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Show pace in the taskbar" />
+                            <TextBlock Text="A tick on the bar marks the even-pace level. The flyout always shows the pace." TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch AutomationProperties.Name="Show pace in the taskbar" IsChecked="{Binding ShowPaceInTaskbar}" />
+                </ui:CardControl>
                 <ui:CardControl Header="Distance from the system tray" Icon="{ui:SymbolIcon ArrowAutofitWidth20}">
                     <ui:NumberBox AutomationProperties.Name="Distance from the system tray" Width="140" Minimum="0" Maximum="400" SmallChange="2" LargeChange="20" MaxDecimalPlaces="0"
                                   Value="{Binding WidgetTrayOffset, UpdateSourceTrigger=PropertyChanged}" />

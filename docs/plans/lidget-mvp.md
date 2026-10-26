@@ -101,6 +101,8 @@ Do not build these items in the MVP:
 | D47 | Experience | History stores a reading only when its value changes, or when 10 minutes passed since the last stored row for the limit. The chart draws steps, shows a reading without neighbors as a dot, and breaks the line at gaps of more than 45 minutes. | Feeds push readings every few seconds while you work. Usage changes in steps, and a sloped line between distant readings shows values that were not measured. | agent default |
 | D48 | Approach | Claude data: Lidget reads the usage response that Claude Code saves in `~/.claude.json` (`cachedUsageUtilization`), with the same 1-hour limit and account check as Claude Code. Without current feed readings, Lidget requests the endpoint only when the newest response from Lidget or Claude Code is 15 minutes old. (Refines D46.) Lidget does not start the Claude Code CLI to ask for usage. | T3 Code gets its limits from a Claude Code CLI that it starts every 5 minutes. The CLI requests the same endpoint with the same login, and saves each response. A saved response costs no request. Starting the CLI would add a large process and use an API that is marked experimental. | user |
 | D49 | Approach | `ClaudeProvider` saves the end of a rate-limit wait in `claude-usage-wait.json` in the data folder, and restores it at start. A successful response deletes the file. A saved wait that ends more than 1 day after the start is ignored. | Each restart during a wait sent one request, and each refused request can start a new 1-hour wait. | user |
+| D50 | Experience | Pace: each flyout bar has an even-pace marker and a text: "On pace", "10% in reserve", "12% in deficit", with "Runs out in 1h 40m" when the limit runs out before its reset. The widget bar shows the marker while **Show pace in the taskbar** is on. The setting is on by default. | Reserve and deficit have the same meaning in both display modes (D44). A marker adds no width to the widget. | user |
+| D51 | Approach | Pace rules: a difference of 5 percentage points or less is on pace. The run-out time uses the average rate of the current window, and shows only after 5% of the window. Severity colors (D20) and notifications (D28) do not use the pace. Window lengths come from the provider data: 5 hours and 7 days for Claude, and `windowDurationMins` for Codex. | The first requests of a window give a rate that changes too much. Colors and notifications stay predictable. | agent default |
 
 ## Constraints
 
@@ -645,7 +647,7 @@ The release stays local until the user approves publication.
 - Code signing with Azure Trusted Signing.
 - MSIX packaging, winget publication, and a Microsoft Store listing.
 - `win-arm64` builds.
-- Usage trends and forecasts from history ("at this rate, the weekly limit runs out on Thursday").
+- Usage trends and forecasts from history across limit windows. D50 gives the run-out time in the current window only.
 
 ## Evidence log
 
@@ -875,3 +877,13 @@ Do not create a GitHub remote, push, tag, or publish a release until the user as
   It logged "Update 0.1.1 is ready for the next start".
   The next start ran `0.1.1`, embedded the widget, and restored the saved Claude usage wait. The `Run` value points to `current\Lidget.exe`.
 - This closes the open gate "An update from a published GitHub release".
+
+### 2026-10-26 — Pace (D50 and D51, revision after `605ff4e`)
+
+- Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 224 tests.
+- Debug build with a copy of the data folder, at 100% scale with the dark taskbar:
+  - The widget bars showed the pace marker. The markers went away at once when **Show pace in the taskbar** was turned off.
+  - The flyout showed "13% in deficit" for a Claude session 8 minutes into its window, with no run-out time.
+    It showed "26% in reserve" for the Claude weekly limit, "On pace" for the Codex session, and "9% in reserve" for the Codex weekly limit.
+- Not checked live: the amber "Runs out in" text, and the markers on a light taskbar. Unit tests cover the run-out text.
+- Open gates: the QA checklist rows for the pace in the next release candidate.

@@ -30,14 +30,14 @@ Expected result:
 | Check | Expected result |
 | --- | --- |
 | Read the widget with the default settings | Each percentage is the share that is left of the tightest limit. A limit with little use has a full bar. |
-| Hover over the widget | The tooltip shows the plan, each limit, and each reset countdown. |
+| Hover over the widget | The tooltip shows the plan, each limit, each reset countdown, and each pace. |
 | Wait 5 minutes | The values change when the provider values change. The countdowns match the provider to the minute. |
 | Right-click the widget | The menu shows **Refresh**, **Settings**, and **Quit Lidget**. |
 | Restart Explorer (`taskkill /f /im explorer.exe`, then `start explorer.exe`) | The widget comes back in the taskbar within 30 seconds. |
 | Change the display scale to 100%, 150%, and 200% | At each scale, the widget stays in the taskbar, next to the system tray. If the widget would cover taskbar buttons, it moves to the bottom-right corner of the screen. It goes back into the taskbar when there is space again. |
 | Set the taskbar alignment to left | The widget stays at the right side of the taskbar, left of the Widgets button. |
 | Turn on **Automatically hide the taskbar** | The widget hides and shows with the taskbar. |
-| Change the Windows mode from dark to light | The widget text and bars stay readable on the light taskbar. |
+| Change the Windows mode from dark to light | The widget text, bars, and pace markers stay readable on the light taskbar. |
 | Start Lidget with `LIDGET_FORCE_FALLBACK=1` | A toast says "Lidget could not join the taskbar". The widget shows in the bottom-right corner. |
 
 ## Flyout
@@ -47,6 +47,7 @@ Expected result:
 | Click the widget | The flyout opens above the widget. |
 | Click the widget again, or press Esc | The flyout closes. |
 | Click the refresh button | A progress ring shows, and the **Updated** time changes to "just now". |
+| Read the limit rows | Each bar with a reset time has a pace marker. The text under the bar shows the pace, for example "On pace". |
 | Read the cost tiles | Each provider shows Today, 7 days, and 30 days, and the label "API-equivalent estimate". |
 | Select **24 h** and **7 d** in the history chart | The chart shows each limit for the selected range. |
 
@@ -56,6 +57,7 @@ Expected result:
 | --- | --- |
 | Turn a provider off | The provider goes away from the widget and the flyout at once. |
 | Change **Show limits as** to Used, and then back to Remaining | The widget, the flyout, and the chart change at once. The flyout labels end in "used" or "left". |
+| Turn off **Show pace in the taskbar** | The pace markers go away from the widget at once. The flyout still shows the pace. |
 | Change **Start with Windows** | The `Run` value goes away or comes back. |
 | Turn on **Read limits from the Claude Code statusline** | `~/.claude/settings.json` has a `statusLine` command for `lidget-statusline.exe`. Your original statusline still shows in Claude Code. |
 | Send a message in Claude Code with the feed on | The Claude values in Lidget change within 10 seconds. |
