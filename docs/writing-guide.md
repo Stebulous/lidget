@@ -13,7 +13,7 @@ Do not change the words of this text:
 - Code, commands, settings keys, file paths, log messages, and other identifiers.
 - Text that Lidget shows, such as setting labels and status messages. Copy it exactly, in bold for labels.
 - `LICENSE` and the license text in `THIRD-PARTY-NOTICES.md`.
-- Dated evidence entries in [the MVP plan](plans/lidget-mvp.md#evidence-log).
+- Dated evidence entries in [the development plan](plans/lidget-plan.md#evidence-log).
 
 ## Sentence rules
 

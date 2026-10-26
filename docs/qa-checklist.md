@@ -2,7 +2,7 @@
 
 Use this checklist to test a release candidate of Lidget on Windows 11.
 The checks cover the shell integration and other behavior that unit tests cannot prove.
-Record each result, with the date, the version, and the revision, in the evidence log of [the MVP plan](plans/lidget-mvp.md#evidence-log).
+Record each result, with the date, the version, and the revision, in the evidence log of [the development plan](plans/lidget-plan.md#evidence-log).
 
 Some checks change the Claude Code settings and the start-with-Windows registry value of the test user.
 Run them only on a computer where you can accept these changes.

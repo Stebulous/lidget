@@ -2,7 +2,7 @@
 
 Use this index to find the guide for your task.
 The guides describe the current `main` branch.
-[The MVP plan](plans/lidget-mvp.md) records the decisions, the task status, and the dated evidence.
+[The development plan](plans/lidget-plan.md) records the decisions, the task status, and the dated evidence.
 
 ## Use Lidget
 
@@ -38,6 +38,6 @@ Each fact has one owner page. Other pages link to it:
 | Sources, requests, and written files | [Data sources and files](data-sources.md) |
 | Commands and environment variables | [Development](development.md) |
 | Release steps | [Release Lidget](releasing.md) |
-| Decisions and evidence | [The MVP plan](plans/lidget-mvp.md) |
+| Decisions and evidence | [The development plan](plans/lidget-plan.md) |
 
 [The writing guide](writing-guide.md#status-words) defines the status words.

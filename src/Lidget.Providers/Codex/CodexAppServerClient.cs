@@ -13,7 +13,7 @@ public sealed class CodexRpcException(int code, string message) : Exception(mess
 
 /// <summary>
 /// JSON-RPC client for <c>codex app-server</c>. Messages are one JSON object on each line, without
-/// a <c>jsonrpc</c> field (T0.3 evidence in docs/plans/lidget-mvp.md).
+/// a <c>jsonrpc</c> field (T0.3 evidence in docs/plans/lidget-plan.md).
 /// </summary>
 public sealed class CodexAppServerClient : IAsyncDisposable
 {

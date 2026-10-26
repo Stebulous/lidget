@@ -203,7 +203,7 @@ lidget/
 ├─ tests/Lidget.Tests/            xUnit, fixtures/ with sanitized recorded responses
 ├─ assets/pricing.json            model prices for each million tokens
 └─ docs/
-   ├─ plans/lidget-mvp.md         this plan
+   ├─ plans/lidget-plan.md        this plan
    └─ qa-checklist.md             manual shell-integration checks
 ```
 
@@ -687,7 +687,7 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 ## Handoff brief
 
 Build the Lidget MVP in `E:\Documents\Projects\lidget`, a new and empty project directory.
-Follow the plan at `docs/plans/lidget-mvp.md`, and start at M0 task T0.1.
+Follow the plan at `docs/plans/lidget-plan.md`, and start at M0 task T0.1.
 Lidget is an MIT Windows 11 taskbar widget in C# on .NET 10 with WPF and WPF-UI.
 It shows Claude limits from the OAuth usage endpoint, with guarded refresh and an optional statusline feed.
 It shows Codex limits from `codex app-server`.

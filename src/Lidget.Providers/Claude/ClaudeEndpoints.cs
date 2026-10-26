@@ -2,7 +2,7 @@ namespace Lidget.Providers.Claude;
 
 /// <summary>
 /// Undocumented Claude Code OAuth endpoints. Values come from OpenUsage
-/// (Sources/OpenUsage/Providers/Claude) and the T0.2 spike in docs/plans/lidget-mvp.md.
+/// (Sources/OpenUsage/Providers/Claude) and the T0.2 spike in docs/plans/lidget-plan.md.
 /// </summary>
 internal static class ClaudeEndpoints
 {

@@ -1,7 +1,7 @@
 # Architecture
 
 This page describes the projects of Lidget, their dependencies, and the flow of limit data.
-[The MVP plan](plans/lidget-mvp.md#decisions) records the reason for each design decision.
+[The development plan](plans/lidget-plan.md#decisions) records the reason for each design decision.
 
 ## Projects
 

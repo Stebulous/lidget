@@ -52,7 +52,7 @@ Do not push a tag, publish a release, or edit a GitHub release without explicit 
 
 Use [the writing guide](docs/writing-guide.md) for the writing standard and the glossary.
 Update the guide that owns a behavior in the same change as the behavior.
-Keep current behavior in the guides, and decisions and dated evidence in [the MVP plan](docs/plans/lidget-mvp.md).
+Keep current behavior in the guides, and decisions and dated evidence in [the development plan](docs/plans/lidget-plan.md).
 
 ## Completion
 

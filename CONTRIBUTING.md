@@ -43,7 +43,7 @@ Follow [Development](docs/development.md) to build, test, and run the Debug buil
 
 - Update the guide that owns a behavior in the same pull request as the behavior. [The documentation index](docs/README.md#documentation-authority) names the owners.
 - Write to [the writing guide](docs/writing-guide.md). Use its glossary terms.
-- Put decisions and dated test results in [the MVP plan](docs/plans/lidget-mvp.md), not in the guides.
+- Put decisions and dated test results in [the development plan](docs/plans/lidget-plan.md), not in the guides.
 
 ## Commits
 
