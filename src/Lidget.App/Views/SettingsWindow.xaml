@@ -169,7 +169,8 @@
                     <ui:NumberBox AutomationProperties.Name="Days of usage history to keep" Width="140" Minimum="1" Maximum="3650" SmallChange="1" LargeChange="30" MaxDecimalPlaces="0"
                                   Value="{Binding HistoryRetentionDays, UpdateSourceTrigger=PropertyChanged}" />
                 </ui:CardControl>
-                <ui:CardAction Icon="{ui:SymbolIcon Folder20}" Command="{Binding OpenDataFolderCommand}" Margin="0,0,0,4">
+                <ui:CardAction Icon="{ui:SymbolIcon Folder20}" Command="{Binding OpenDataFolderCommand}" Margin="0,0,0,4"
+                               AutomationProperties.Name="Open data folder">
                     <StackPanel>
                         <TextBlock Text="Open data folder" />
                         <TextBlock Text="{Binding DataDirectory}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

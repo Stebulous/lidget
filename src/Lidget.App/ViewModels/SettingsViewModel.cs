@@ -12,9 +12,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Lidget.App.ViewModels;
 
-public sealed record MetricOption(WidgetMetric Value, string Label);
+// Screen readers read the item text from ToString.
+public sealed record MetricOption(WidgetMetric Value, string Label)
+{
+    public override string ToString() => Label;
+}
 
-public sealed record DisplayOption(UsageDisplay Value, string Label);
+public sealed record DisplayOption(UsageDisplay Value, string Label)
+{
+    public override string ToString() => Label;
+}
 
 /// <summary>Edits <see cref="LidgetSettings"/>. Each change saves and applies at once.</summary>
 public sealed partial class SettingsViewModel : ObservableObject
