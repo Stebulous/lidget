@@ -1,13 +1,13 @@
-# Lidget MVP — Development plan
+# Lidget — Development plan
 
-> Status: approved · Planned: 2026-10-22 · Repository: new project at `E:\Documents\Projects\lidget`
+> Status: Released (0.2.0, 2026-10-26) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
 ## Summary
 
 Lidget is a Windows 11 app that shows the usage limits of AI subscription plans in a small widget inside the taskbar.
-The MVP tracks Claude (Pro/Max) and Codex (ChatGPT plans).
+Lidget tracks Claude (Pro/Max) and Codex (ChatGPT plans).
 A click on the widget opens a Fluent flyout with limit details, local cost estimates, and a usage history chart.
 Lidget is a public open-source project with the MIT license, distributed through GitHub Releases with automatic updates.
 
@@ -33,7 +33,8 @@ The design takes ideas from two projects:
 
 ## Non-goals
 
-Do not build these items in the MVP:
+Lidget does not include these items.
+Record a new decision before you build one. [Later](#later) lists the candidates.
 
 - Providers other than Claude and Codex (for example Cursor, Copilot, Gemini, OpenRouter).
 - Account switching or multiple accounts for one provider.
@@ -44,7 +45,7 @@ Do not build these items in the MVP:
 - Windows 10 support.
 - MSIX packaging or a Microsoft Store listing.
 - Code signing.
-- Localization. The MVP is English only.
+- Localization. Lidget is English only.
 - A separate in-app OAuth login. Lidget uses the existing CLI logins.
 - Code copied from FluentFlyout. Its license is GPL-3.0, and Lidget is MIT.
 
@@ -54,8 +55,8 @@ Do not build these items in the MVP:
 | --- | --- | --- | --- | --- |
 | D1 | Intent | Public open-source app with the MIT license | Matches OpenUsage, permits contributions, and keeps a later Store option | user |
 | D2 | Intent | Future work deepens AI-usage features (more providers, history, alerts). No widget platform and no plugin system. | Keeps the core focused on one domain | user |
-| D3 | Shape | MVP providers: Claude (Pro/Max) and Codex | The two best-understood integrations | user |
-| D4 | Shape | MVP includes threshold notifications, local cost estimates, and a usage history chart | User selection | user |
+| D3 | Shape | Providers: Claude (Pro/Max) and Codex | The two best-understood integrations | user |
+| D4 | Shape | The first release includes threshold notifications, local cost estimates, and a usage history chart | User selection | user |
 | D5 | Shape | No tray icon. Settings and Quit are in the widget context menu and the flyout. | User selection | user |
 | D6 | Experience | Widget shows logo, thin bar, and percentage for each provider | Readable at a glance | user |
 | D7 | Experience | Native Fluent style: Segoe UI Variable, Mica, system light or dark theme, system accent color | Matches the taskbar and system flyouts | user |
@@ -72,7 +73,7 @@ Do not build these items in the MVP:
 | D18 | Experience | Left-click toggles the flyout. Hover shows reset times. Right-click opens Refresh, Settings, and Quit. | Conventional taskbar interaction | agent default |
 | D19 | Experience | Widget percentage shows the tightest limit by default. Settings can select session or weekly. | The tightest limit is the one that stops work | agent default |
 | D20 | Experience | Colors: green below 75%, amber from 75%, red from 90% | Common warning thresholds | agent default |
-| D21 | Experience | Flyout: one card for each provider with session and weekly bars, reset countdowns, cost tiles, history chart, last-updated time, refresh button, and settings button | Shows all MVP data in one surface | agent default |
+| D21 | Experience | Flyout: one card for each provider with session and weekly bars, reset countdowns, cost tiles, history chart, last-updated time, refresh button, and settings button | Shows all provider data in one surface | agent default |
 | D22 | Experience | Settings: enable each provider, refresh interval, notification thresholds, widget metric, start with Windows, history retention, statusline feed, widget offset | Covers each configurable decision | agent default |
 | D23 | Approach | Refresh every 5 minutes by default (range 1 to 30). Refresh when the flyout opens and data is older than 60 seconds. Exponential backoff after HTTP 429. | Same default as OpenUsage. Limits load on the endpoints. | agent default |
 | D24 | Approach | Projects: `Lidget.Core`, `Lidget.Providers`, `Lidget.App`, `Lidget.StatusLine`, `Lidget.Tests` | Keeps WPF out of logic that tests cover | agent default |
@@ -120,7 +121,7 @@ Do not build these items in the MVP:
 
 ## Context
 
-### Current repository state
+### Repository state on 2026-10-22
 
 The directory contains only this plan.
 It is not a git repository yet.
@@ -315,6 +316,9 @@ The pill is a topmost, draggable, borderless window with the same widget content
 `TaskbarHost` shows one toast that explains the fallback.
 
 ## Work breakdown
+
+Milestones M0 to M4 built the first release, 0.1.0. All their tasks are complete.
+Each later change has a decision in [Decisions](#decisions) and an entry in the [Evidence log](#evidence-log).
 
 ### M0 — Bootstrap and spikes
 
@@ -580,7 +584,7 @@ The release stays local until the user approves publication.
   - Parallel-safe: yes, with T4.1.
 
 - [x] **T4.3 Release candidate QA**
-  - Objective: prove the MVP success criteria on a clean install.
+  - Objective: prove the success criteria on a clean install.
   - Touches: plan evidence log.
   - Depends on: T4.1, T4.2.
   - Acceptance:
@@ -683,22 +687,6 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - The server also sends unrelated notifications, for example `remoteControl/status/changed` and `account/updated`. The client must ignore unknown methods.
 - Map windows by `windowDurationMins`: 300 is the session window, and 10080 is the weekly window.
 - Open gates: none for M1.
-
-## Handoff brief
-
-Build the Lidget MVP in `E:\Documents\Projects\lidget`, a new and empty project directory.
-Follow the plan at `docs/plans/lidget-plan.md`, and start at M0 task T0.1.
-Lidget is an MIT Windows 11 taskbar widget in C# on .NET 10 with WPF and WPF-UI.
-It shows Claude limits from the OAuth usage endpoint, with guarded refresh and an optional statusline feed.
-It shows Codex limits from `codex app-server`.
-
-Do not copy FluentFlyout code (GPL-3.0). You can port OpenUsage logic (MIT) with attribution.
-Do not write `~/.codex/auth.json`, and never log tokens.
-Run the three M0 spikes before M1, and record their results in the plan evidence log.
-
-Each task must pass its acceptance checks and `dotnet test` before you commit it.
-Use one gitmoji commit for each task on `main`.
-Do not create a GitHub remote, push, tag, or publish a release until the user asks.
 
 ### 2026-10-22 — T0.4 taskbar embedding spike (revision after `85700c2`)
 
