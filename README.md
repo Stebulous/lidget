@@ -4,9 +4,9 @@ Lidget is a Windows 11 taskbar widget that shows the usage limits of AI subscrip
 It tracks Claude (Pro and Max plans, through Claude Code) and Codex (ChatGPT plans, through the Codex CLI).
 The name joins "limits" and "widget".
 
-![The Lidget widget in the taskbar](docs/images/widget.png)
+![The Lidget widget in the taskbar, with an even-pace marker on each bar](docs/images/widget.png)
 
-![The Lidget flyout with limits, cost estimates, and history](docs/images/flyout.png)
+![The Lidget flyout with limits, pace, cost estimates, and history](docs/images/flyout.png)
 
 ## Start here
 
@@ -21,8 +21,11 @@ The name joins "limits" and "widget".
 
 - The widget shows the tightest limit of each provider as a bar and a percentage.
   By default, the percentage is the share of the limit that is left. A setting changes it to the used share.
+  A tick on each bar marks the even-pace level. A setting removes the tick.
 - A click on the widget opens a flyout. For each provider, the flyout shows:
   - The session limit (5 hours) and the weekly limit, with reset countdowns.
+  - The [pace](docs/user-guide.md#read-the-pace) of each limit: on pace, in reserve, or in deficit.
+    If a limit runs out before its reset at the current rate, an amber text shows the time until it runs out.
   - The API-equivalent cost for today, the last 7 days, and the last 30 days, from local session logs.
   - A history chart of the last 24 hours or 7 days.
 - A notification shows when the used share of a limit passes 80% and 95%.
