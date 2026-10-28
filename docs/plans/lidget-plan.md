@@ -105,6 +105,7 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 | D50 | Experience | Pace: each flyout bar has an even-pace marker and a text: "On pace", "10% in reserve", "12% in deficit", with "Runs out in 1h 40m" when the limit runs out before its reset. The widget bar shows the marker while **Show pace in the taskbar** is on. The setting is on by default. | Reserve and deficit have the same meaning in both display modes (D44). A marker adds no width to the widget. | user |
 | D51 | Approach | Pace rules: a difference of 5 percentage points or less is on pace. The run-out time uses the average rate of the current window, and shows only after 5% of the window. Severity colors (D20) and notifications (D28) do not use the pace. Window lengths come from the provider data: 5 hours and 7 days for Claude, and `windowDurationMins` for Codex. | The first requests of a window give a rate that changes too much. Colors and notifications stay predictable. | agent default |
 | D52 | Approach | Codex data: Lidget reads the `codex` bucket of `rateLimitsByLimitId`, and uses `rateLimits` only when the bucket is missing. It ignores an `account/rateLimits/updated` snapshot with another `limitId`. (Refines D12.) | The 0.163.0 schema calls `rateLimits` a single-bucket view for compatibility. Before this change, a model limit in a notification could replace the plan allowance. | agent default |
+| D53 | Approach | The flyout adds the history chart only while it is open, and the progress ring only during a refresh. The chart does not reload while the flyout is hidden. | A loaded LiveCharts chart handles each WPF frame. The WPF-UI ring only pauses its animation when it is hidden, and WPF keeps rendering frames. A hidden window keeps both, so the idle widget used CPU until Lidget quit. | agent default |
 
 ## Constraints
 
@@ -908,3 +909,28 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - Display scale: 125% (120 DPI). The two earlier entries of 2026-10-26 say 100%, but no check measured the scale. It was probably 125% also.
 - This closes the open gate "The update from the published GitHub release".
 - Open gates: the notification checks and the one-week check, which need time.
+
+### 2026-10-28 — Idle CPU of the widget (D53, revision after `8090885`)
+
+- Profile of the installed `0.2.0`, 12.5 hours after the start, with the flyout closed:
+  - CPU: 1.5% of one core all the time. The UI thread used 781 ms in each minute, and 64% of it was kernel time.
+  - Memory: 241 to 265 MB working set, and 234 MB private. The managed heap had 13 MB of live objects. The NVIDIA Direct3D driver and the Windows SDK projection were the largest modules.
+  - Not causes: garbage collection, JIT compilation, exceptions, handles, and the thread pool.
+- Causes, from a heap dump of the running process:
+  - `CompositionTarget.Rendering` had a LiveCharts `CompositionTargetTicker` handler. LiveCharts 2.0.5 adds it when the chart loads and removes it when the chart unloads.
+  - The WPF-UI 4.3.0 `ProgressRing` storyboard (`RepeatBehavior="Forever"`) was active. Its template starts it when the ring shows, and only pauses it when the ring hides.
+- A/B check: Debug builds with a copy of the data folder. The UI thread time was measured for 60 seconds, after the flyout closed.
+
+  | Build and steps | UI thread in 60 s | Process in 60 s |
+  | --- | --- | --- |
+  | `8090885`, flyout opened and closed | 844 ms | 1,562 ms |
+  | `8090885`, flyout opened, refresh button, flyout closed | 1,125 ms | 1,641 ms |
+  | Chart change only, refresh button | 1,188 ms | Not measured |
+  | Both changes, refresh button | 16 ms | 297 ms |
+
+- With both changes, the dump had no `Rendering` handler, and the only active clock was the root clock of the WPF time manager.
+- The progress ring showed during the refresh. The chart drew correctly when the flyout opened again.
+- Not a cause: `TaskbarButtonsProbe`. The same UI Automation queries from another process every 2 seconds did not change the UI thread time of Lidget.
+- Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 226 tests.
+- The installed `0.2.0` was quit for the Debug build checks, and started again from the Start menu shortcut.
+- Open gates: the QA checklist row for idle CPU on the next release candidate.

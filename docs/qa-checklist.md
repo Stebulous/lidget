@@ -47,6 +47,7 @@ Expected result:
 | Click the widget | The flyout opens above the widget. |
 | Click the widget again, or press Esc | The flyout closes. |
 | Click the refresh button | A progress ring shows, and the **Updated** time changes to "just now". |
+| Close the flyout, wait 1 minute, and run `$a = (Get-Process Lidget).TotalProcessorTime; Start-Sleep 60; ((Get-Process Lidget).TotalProcessorTime - $a).TotalSeconds` | The result is less than 1. |
 | Read the limit rows | Each bar with a reset time has a pace marker. The text under the bar shows the pace, for example "On pace". |
 | Read the cost tiles | Each provider shows Today, 7 days, and 30 days, and the label "API-equivalent estimate". |
 | Select **24 h** and **7 d** in the history chart | The chart shows each limit for the selected range. |
