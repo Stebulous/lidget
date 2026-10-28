@@ -30,6 +30,7 @@ public sealed partial class HistoryViewModel : ObservableObject
     private readonly Func<string, string> _providerName;
     private readonly Dispatcher _dispatcher;
     private int _loadVersion;
+    private volatile bool _isShown;
 
     public HistoryViewModel(HistoryStore store, TimeProvider time, Func<string, string> providerName)
     {
@@ -69,9 +70,24 @@ public sealed partial class HistoryViewModel : ObservableObject
 
     partial void OnShowWeekChanged(bool value) => Reload();
 
-    /// <summary>Reads the history again and rebuilds the chart. Safe to call from any thread.</summary>
+    /// <summary>
+    /// Whether the flyout shows the chart. A hidden chart does not reload, because a rebuild costs a query and
+    /// UI thread work. Set it before the reload that the flyout does when it opens.
+    /// </summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        set => _isShown = value;
+    }
+
+    /// <summary>Reads the history again and rebuilds the chart, if it is shown. Safe to call from any thread.</summary>
     public void Reload()
     {
+        if (!_isShown)
+        {
+            return;
+        }
+
         var version = Interlocked.Increment(ref _loadVersion);
         var range = ShowWeek ? TimeSpan.FromDays(7) : TimeSpan.FromHours(24);
         var now = _time.GetUtcNow();

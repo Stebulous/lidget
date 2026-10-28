@@ -190,14 +190,9 @@
         <TextBlock x:Name="EmptyText" Grid.Row="1" Margin="2,0,0,12" TextWrapping="Wrap" Style="{StaticResource Caption}"
                    Text="No providers are on. Open Settings to choose which limits to show." Visibility="Collapsed" />
 
-        <ContentControl x:Name="HistorySlot" Grid.Row="2" Margin="0,0,0,8" Focusable="False" Content="{Binding History}"
-                        Visibility="{Binding History, Converter={StaticResource NullToCollapsed}}">
-            <ContentControl.ContentTemplate>
-                <DataTemplate DataType="vm:HistoryViewModel">
-                    <views:HistoryChartView />
-                </DataTemplate>
-            </ContentControl.ContentTemplate>
-        </ContentControl>
+        <!-- The code-behind adds the chart only while the flyout is open. See FlyoutWindow.AttachHistory. -->
+        <Border x:Name="HistorySlot" Grid.Row="2" Margin="0,0,0,8"
+                Visibility="{Binding History, Converter={StaticResource NullToCollapsed}}" />
 
         <DockPanel Grid.Row="3" Margin="0,2,0,0" LastChildFill="False">
             <ui:Button DockPanel.Dock="Right" Appearance="Transparent" Padding="8" Margin="4,0,0,0"

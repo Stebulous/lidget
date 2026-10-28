@@ -66,6 +66,7 @@ public partial class FlyoutWindow : FluentWindow
 
     private void ShowAt(ScreenRect anchor)
     {
+        AttachHistory(true);
         var monitor = MonitorInfo.FromPoint(anchor.CenterX, anchor.CenterY);
         var scale = monitor.Scale;
 
@@ -97,6 +98,24 @@ public partial class FlyoutWindow : FluentWindow
 
         _lastHiddenTicks = Environment.TickCount64;
         Hide();
+        AttachHistory(false);
+    }
+
+    /// <summary>
+    /// Adds the history chart to the flyout, or removes it. A loaded LiveCharts chart handles each WPF frame
+    /// (<c>CompositionTarget.Rendering</c>), so that WPF renders at the display refresh rate. A hidden window
+    /// does not unload its content, and a hidden window does no layout, so a content change has no effect.
+    /// Only a removed child unloads at once, and its chart stops the frames.
+    /// </summary>
+    private void AttachHistory(bool shown)
+    {
+        if (_viewModel.History is not { } history)
+        {
+            return;
+        }
+
+        history.IsShown = shown;
+        HistorySlot.Child = shown ? new HistoryChartView { DataContext = history } : null;
     }
 
     private void KeepAnchored()
