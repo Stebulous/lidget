@@ -33,6 +33,13 @@ public partial class FlyoutWindow : FluentWindow
 
         viewModel.VisibleProviders.CollectionChanged += (_, _) => UpdateEmptyState();
         UpdateEmptyState();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(UsageViewModel.IsRefreshing))
+            {
+                UpdateRefreshRing();
+            }
+        };
 
         Deactivated += (_, _) => HideFlyout();
         SizeChanged += (_, _) => KeepAnchored();
@@ -145,6 +152,14 @@ public partial class FlyoutWindow : FluentWindow
         animation.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromPercent(1), new KeySpline(0.23, 1, 0.32, 1)));
         Slide.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, animation);
     }
+
+    /// <summary>
+    /// Adds a progress ring during a refresh, and removes it after. The ring starts an animation that repeats
+    /// forever, and its template only pauses the animation when the ring is hidden. A paused animation keeps
+    /// WPF rendering frames, so a hidden ring costs CPU until Lidget quits. A removed ring stops the frames.
+    /// </summary>
+    private void UpdateRefreshRing() =>
+        RefreshSlot.Child = _viewModel.IsRefreshing ? new ProgressRing { IsIndeterminate = true, Width = 16, Height = 16 } : null;
 
     private void UpdateEmptyState() =>
         EmptyText.Visibility = _viewModel.VisibleProviders.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

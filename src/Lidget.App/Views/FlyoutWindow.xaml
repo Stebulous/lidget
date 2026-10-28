@@ -199,8 +199,8 @@
                        Icon="{ui:SymbolIcon Settings20}" ToolTip="Settings" AutomationProperties.Name="Settings" Command="{Binding OpenSettingsCommand}" />
             <ui:Button DockPanel.Dock="Right" Appearance="Transparent" Padding="8"
                        Icon="{ui:SymbolIcon ArrowSync20}" ToolTip="Refresh now" AutomationProperties.Name="Refresh now" Command="{Binding RefreshCommand}" />
-            <ui:ProgressRing DockPanel.Dock="Right" Width="16" Height="16" Margin="0,0,8,0" IsIndeterminate="True"
-                             Visibility="{Binding IsRefreshing, Converter={StaticResource BoolToVisibility}}" />
+            <!-- The code-behind adds a progress ring only during a refresh. See FlyoutWindow.UpdateRefreshRing. -->
+            <Border x:Name="RefreshSlot" DockPanel.Dock="Right" Margin="0,0,8,0" />
         </DockPanel>
     </Grid>
 </ui:FluentWindow>
