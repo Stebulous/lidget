@@ -1,6 +1,6 @@
 # Lidget — Development plan
 
-> Status: Released (0.2.0, 2026-10-26) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
+> Status: Released (0.2.1, 2026-10-29) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
@@ -934,3 +934,26 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - Commands: `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 226 tests.
 - The installed `0.2.0` was quit for the Debug build checks, and started again from the Start menu shortcut.
 - Open gates: the QA checklist row for idle CPU on the next release candidate.
+
+### 2026-10-29 — 0.2.1 release candidate QA (revision `3b75b9d`)
+
+- Install: `./scripts/pack.ps1 -Version 0.2.1-local.1` with a temporary output folder, then `Lidget-win-Setup.exe --silent` over the installed `0.2.0`.
+  The data folder was copied first. The copy started from the Start menu shortcut ran `0.2.1-local.1+3b75b9d`, and embedded the widget.
+- Passed on `0.2.1-local.1`, at 125% scale:
+  - Flyout: open by a click and close by Esc, the chart in 24 h and 7 d, and the cost tiles.
+  - The refresh button showed the progress ring, and the **Updated** time changed to "just now". The ring went away after the refresh.
+  - Idle CPU: the flyout was opened, refreshed, and closed. After 1 minute, the process used 0.11 seconds of CPU time in 60 seconds. This passes the QA checklist row.
+- `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 226 tests.
+- Not run, because this release does not change them: the widget, settings, notification, and uninstall checks.
+- This closes the open gate "the QA checklist row for idle CPU on the next release candidate".
+
+### 2026-10-29 — Release 0.2.1 and the update from GitHub (revision `2694632`)
+
+- CI passed on `2694632`. The tag `v0.2.1` started the **Release** workflow, which passed.
+  The draft had the full package, a delta package from `0.2.0`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
+- Draft check: `Lidget-0.2.1-full.nupkg` has `Lidget.exe` with the version `0.2.1+2694632` and `lidget-statusline.exe`.
+- The agent published the release at 6:13 AM as the latest release, with permission from the maintainer.
+- Update: the installed `0.2.1-local.1` started from the Start menu shortcut at 6:14 AM, and downloaded `0.2.1` from GitHub in 5 seconds.
+  It logged "Update 0.2.1 is ready for the next start".
+  The next start, at 6:14 AM, ran `0.2.1+2694632` and embedded the widget. The `Run` value points to `current\Lidget.exe`.
+- Open gates: the notification checks and the one-week check, which need time.
