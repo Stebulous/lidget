@@ -973,3 +973,18 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - Not found: which T3 Code probe gave the 3% value. `cachedUsageUtilization` stayed at 4:56 AM during probes at 5:14, 5:42, and 5:56 AM.
 - A `rate_limit_event` can differ from the endpoint by 1 point: at 5:57 AM the event had 15% weekly, and the endpoint had 16% at 5:11 AM. The newest reading still wins.
 - Measure after the release: the number of "Anthropic rate-limited the usage request" log lines each night, with the 30-minute interval. The log had 12 such lines from October 28 to October 31.
+
+### 2026-10-31 — 0.2.2 release candidate QA (revision `f0e3adf`)
+
+- Install: `./scripts/pack.ps1 -Version 0.2.2-local.1` with a temporary output folder, then `Lidget-win-Setup.exe --silent` over the installed `0.2.1`.
+  The data folder was copied first. The copy started from the Start menu shortcut ran `0.2.2-local.1+f0e3adf`, embedded the widget, and showed Claude session and weekly rows. The `Run` value points to `current\Lidget.exe`.
+- Rate-limit state, on the installed `0.2.2-local.1`, at 125% scale:
+  - Setup: `LIDGET_DATA_DIR` pointed to a copy of the data folder, with a wait file 45 minutes in the future and the T3 Code feed off. `CLAUDE_CONFIG_DIR` pointed to a temporary folder with only the saved response and the account ID, and with no credentials.
+  - A saved response with an age of 2 hours showed 99% session and 82% weekly, "Updated 2 h ago", and the rate-limit warning.
+  - A saved response with an age of 20 minutes showed the same values, "Updated 20 min ago", and no warning.
+  - Each start with the wait file sent no endpoint request. In the debug log run, the log had no "Requesting Claude usage from the endpoint" message.
+  - The plan name and the cost tiles were not shown, because the temporary folder had no login and no session logs.
+- `~/.claude/settings.json` did not change. The `codex app-server` of each test copy stopped with the copy. The installed copy was started again from the Start menu shortcut.
+- `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 231 tests.
+- Not run, because this release does not change them: the settings, notification, update, uninstall, display-scale, and idle CPU checks. A real HTTP 429 did not occur during the run, so `ClaudeProviderTests` covers the change from a good response to a 429.
+- Open gates: the nightly count of 429 log lines after the release (D55).
