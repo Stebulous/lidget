@@ -98,7 +98,7 @@ public sealed class ClaudeProvider : IUsageProvider
             await ReadPlanAsync(ct).ConfigureAwait(false);
         }
 
-        return Finish(Combine(Base(endpoint, cached), readings, now));
+        return Finish(Combine(Base(endpoint, now), readings, now));
     }
 
     /// <summary>
@@ -137,17 +137,45 @@ public sealed class ClaudeProvider : IUsageProvider
     /// The full response to combine with the feeds: Lidget's last endpoint result, or the response that Claude
     /// Code saved, if that is newer or the endpoint failed.
     /// </summary>
-    private ProviderSnapshot Base(ProviderSnapshot? endpoint, ClaudeCachedUsage? cached)
+    private ProviderSnapshot Base(ProviderSnapshot? endpoint, DateTimeOffset now)
     {
-        if (cached is null)
+        if (endpoint is { Status: ProviderStatus.RateLimited or ProviderStatus.Error } failure)
         {
-            return endpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
+            return LastKnown(failure, now);
         }
 
-        return endpoint is { Status: ProviderStatus.Ok } && endpoint.UpdatedAt >= cached.FetchedAt
-            ? endpoint
-            : new ProviderSnapshot(Id, ProviderStatus.Ok, cached.Limits, null, cached.FetchedAt);
+        var good = endpoint is { Status: ProviderStatus.Ok } ? endpoint : null;
+        return Newest(good, _cache?.Read()) ?? endpoint ?? Failed(ProviderStatus.Stale, "Waiting for the first usage request.");
     }
+
+    /// <summary>
+    /// The result while the endpoint fails: the newest response that Lidget or Claude Code received. It keeps the
+    /// status <see cref="ProviderStatus.Ok"/> for <see cref="ClaudeCodeUsageCache.MaxAge"/>, and then shows the
+    /// failure beside its values. A window whose reset time has passed is left out.
+    /// </summary>
+    private ProviderSnapshot LastKnown(ProviderSnapshot failure, DateTimeOffset now)
+    {
+        if (Newest(_lastGoodEndpoint, _cache?.ReadLastKnown()) is not { } response)
+        {
+            return failure;
+        }
+
+        var limits = response.Limits.Where(l => l.ResetsAt is not { } reset || reset > now).ToArray();
+        if (limits.Length == 0)
+        {
+            return failure;
+        }
+
+        response = response with { Limits = limits };
+        return now - response.UpdatedAt <= ClaudeCodeUsageCache.MaxAge
+            ? response
+            : response with { Status = ProviderStatus.Stale, StatusMessage = failure.StatusMessage, RetryAfter = failure.RetryAfter };
+    }
+
+    private ProviderSnapshot? Newest(ProviderSnapshot? good, ClaudeCachedUsage? saved) =>
+        saved is not null && (good is null || saved.FetchedAt > good.UpdatedAt)
+            ? new ProviderSnapshot(Id, ProviderStatus.Ok, saved.Limits, null, saved.FetchedAt)
+            : good;
 
     /// <summary>A response that Claude Code saved, or a wait from before a restart, has no plan, so read the plan from the login.</summary>
     private async Task ReadPlanAsync(CancellationToken ct)
@@ -263,7 +291,8 @@ public sealed class ClaudeProvider : IUsageProvider
             return;
         }
 
-        Push(Finish(Combine(Base(_lastEndpoint, _cache?.Read()), readings, _time.GetUtcNow())));
+        var now = _time.GetUtcNow();
+        Push(Finish(Combine(Base(_lastEndpoint, now), readings, now)));
     }
 
     /// <summary>Adds the plan name when the result comes from the feeds or from Claude Code.</summary>

@@ -163,7 +163,7 @@ A `statusLine` setting in a project overrides the user setting, so the feed does
 | --- | --- | --- |
 | A notification says "Lidget could not join the taskbar" | The taskbar is at the bottom of the primary monitor. | Move the taskbar to the bottom. Lidget shows the pill until it can join the taskbar. |
 | The pill shows after a display scale change | The widget would cover taskbar buttons. | Close some apps, or use a smaller scale. The widget goes back when there is space. |
-| "Anthropic is limiting usage requests" | The usage endpoint returned HTTP 429, and Claude Code saved no response in the last hour. | Wait. Lidget retries after the time that Anthropic sends. Turn on a feed for current values. |
+| "Anthropic is limiting usage requests" | The usage endpoint returned HTTP 429, and the newest response is more than 1 hour old. Lidget shows the values of that response, and **Updated** shows their age. | Wait. Lidget retries after the time that Anthropic sends. Turn on a feed for current values. |
 | "Sign in to Claude Code to show Claude limits" | `~/.claude/.credentials.json` exists. | Run `claude`, and then sign in. |
 | "Run `codex login` to show Codex limits" | `codex login status` | Run `codex login` with a ChatGPT account. |
 | "Install the Codex CLI to show Codex limits" | `codex --version` | Install the Codex CLI, and then restart Lidget. |

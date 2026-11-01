@@ -66,6 +66,7 @@ Expected result:
 | Send a message to Claude in T3 Code, with **Read limits from T3 Code** on | Within 10 seconds, the Claude values in Lidget change. The flyout shows "Updated just now". |
 | Turn off **Read limits from T3 Code**, and send a message in T3 Code | The Claude values change only at the next endpoint request. |
 | Start Lidget with `LIDGET_DEBUG_LOG=1` while `cachedUsageUtilization.fetchedAtMs` in `~/.claude.json` is less than 30 minutes old | The flyout shows the values of that copy, and its update time is the `fetchedAtMs` time. The log has no "Requesting Claude usage from the endpoint" message. |
+| Read the Claude card while the log has a recent "Anthropic rate-limited the usage request" message and no T3 Code session runs | The card keeps its last session and weekly values. After 1 hour, it also shows the rate-limit warning, and **Updated** shows the real age. |
 | Select **Open data folder** | File Explorer opens `%LOCALAPPDATA%\LidgetData`. |
 
 ## Notifications

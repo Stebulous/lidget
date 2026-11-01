@@ -372,6 +372,130 @@ public class ClaudeProviderTests : IDisposable
         Assert.Equal("Pro", snapshot.PlanName);
         Assert.Equal(61, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
     }
+
+    [Fact]
+    public async Task RateLimitKeepsTheLastGoodResponseAfterTheCopyExpires()
+    {
+        WriteCredentials();
+        var limited = false;
+        var handler = new FakeHttpHandler((_, _) => limited
+            ? TooManyRequests(TimeSpan.FromMinutes(90))
+            : FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        WriteClaudeCodeCopy(Now - ClaudeProvider.EndpointInterval - TimeSpan.FromMinutes(1), session: 2, weekly: 16);
+        var provider = CreateProvider(handler, withClaudeCodeCopy: true);
+        await provider.RefreshAsync(CancellationToken.None);
+        Assert.Single(handler.Requests);
+
+        // The refused request does not replace the newer response with the older copy.
+        limited = true;
+        _time.Advance(ClaudeProvider.EndpointInterval);
+        var refused = await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(ProviderStatus.Ok, refused.Status);
+        Assert.Null(refused.StatusMessage);
+        Assert.Equal(38, refused.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+        Assert.Equal(Now, refused.UpdatedAt);
+
+        // After 1 hour, the values stay with their real age and the reason.
+        _time.Advance(TimeSpan.FromMinutes(31));
+        var stale = await provider.RefreshAsync(CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(ProviderStatus.Stale, stale.Status);
+        Assert.Contains("limiting", stale.StatusMessage);
+        Assert.Equal("Pro", stale.PlanName);
+        Assert.Equal(38, stale.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+        Assert.Equal(52, stale.Limits.Single(l => l.Kind == LimitKind.Weekly).UsedPercent);
+        Assert.Equal(Now, stale.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task RateLimitLeavesOutAWindowThatReset()
+    {
+        WriteCredentials();
+        var limited = false;
+        var handler = new FakeHttpHandler((_, _) => limited
+            ? TooManyRequests(TimeSpan.FromHours(6))
+            : FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var provider = CreateProvider(handler);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        limited = true;
+        _time.Advance(ClaudeProvider.EndpointInterval);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        // The fixture's session window resets at 08:19, and its weekly window at 19:59.
+        _time.Advance(TimeSpan.FromHours(2));
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Stale, snapshot.Status);
+        Assert.DoesNotContain(snapshot.Limits, l => l.Kind == LimitKind.Session);
+        Assert.Equal(52, snapshot.Limits.Single(l => l.Kind == LimitKind.Weekly).UsedPercent);
+    }
+
+    [Fact]
+    public async Task ARestartDuringAWaitShowsAnOldClaudeCodeCopyAsStale()
+    {
+        WriteCredentials();
+        WriteClaudeCodeCopy(Now.AddHours(-2), session: 61, weekly: 7);
+        File.WriteAllText(WaitPath, new JsonObject { ["retryAt"] = Now.AddMinutes(30) }.ToJsonString());
+        var handler = new FakeHttpHandler((_, _) => throw new InvalidOperationException("No request expected."));
+
+        var snapshot = await CreateProvider(handler, withClaudeCodeCopy: true, saveWait: true).RefreshAsync(CancellationToken.None);
+
+        Assert.Empty(handler.Requests);
+        Assert.Equal(ProviderStatus.Stale, snapshot.Status);
+        Assert.Equal(TimeSpan.FromMinutes(30), snapshot.RetryAfter);
+        Assert.Equal(Now.AddHours(-2), snapshot.UpdatedAt);
+        Assert.Equal(61, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+    }
+
+    [Fact]
+    public async Task ANewerFeedReadingReplacesTheKeptResponse()
+    {
+        WriteCredentials();
+        var limited = false;
+        var handler = new FakeHttpHandler((_, _) => limited
+            ? TooManyRequests(TimeSpan.FromHours(2))
+            : FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var feed = new FakeFeed();
+        var provider = CreateProvider(handler, feed);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        limited = true;
+        _time.Advance(ClaudeProvider.EndpointInterval);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(45));
+        SetFeed(feed, 60, 70);
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.Ok, snapshot.Status);
+        Assert.Null(snapshot.StatusMessage);
+        Assert.Equal(60, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
+        Assert.Equal(_time.GetUtcNow(), snapshot.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task AFailedLoginDoesNotKeepTheLastGoodResponse()
+    {
+        WriteCredentials();
+        var refused = false;
+        var handler = new FakeHttpHandler((request, _) => !IsUsage(request)
+            ? FakeHttpHandler.Json(HttpStatusCode.OK, """{"access_token":"access-2","expires_in":3600}""")
+            : refused
+                ? FakeHttpHandler.Json(HttpStatusCode.Unauthorized, "{}")
+                : FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));
+        var provider = CreateProvider(handler);
+        await provider.RefreshAsync(CancellationToken.None);
+
+        refused = true;
+        _time.Advance(ClaudeProvider.EndpointInterval);
+        var snapshot = await provider.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderStatus.NeedsLogin, snapshot.Status);
+        Assert.Empty(snapshot.Limits);
+    }
+
     [Fact]
     public async Task ARestartKeepsTheRateLimitWait()
     {

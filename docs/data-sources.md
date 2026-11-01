@@ -11,7 +11,7 @@ Lidget does not send data to a server other than the providers and GitHub.
 | Source | When | Notes |
 | --- | --- | --- |
 | `https://api.anthropic.com/api/oauth/usage` | At a refresh, when no source has a recent response. See [Usage endpoint requests](#usage-endpoint-requests). | Uses the Claude Code login in `~/.claude/.credentials.json`. Anthropic does not document this endpoint, and can change it without notice. |
-| The usage response that Claude Code saved, in `~/.claude.json` | At each refresh | Each Claude Code process saves its last successful usage request as `cachedUsageUtilization`. This includes the CLI that T3 Code starts to check the limits. Lidget uses a copy that is less than 1 hour old and that belongs to the signed-in account. The key is undocumented, and Lidget only reads the file. |
+| The usage response that Claude Code saved, in `~/.claude.json` | At each refresh | Each Claude Code process saves its last successful usage request as `cachedUsageUtilization`. This includes the CLI that T3 Code starts to check the limits. Lidget uses a copy that belongs to the signed-in account. The copy must be less than 1 hour old, unless the endpoint fails. The key is undocumented, and Lidget only reads the file. |
 | T3 Code provider logs, `~/.t3/userdata/logs/provider/events.*.log` | When the logs change, if **Read limits from T3 Code** is on (default) | Lidget reads only the `rate_limit_event` entries of Claude sessions. It ignores all other log content. |
 | The Claude Code statusline, through `lidget-statusline.exe` | After each Claude Code response in a terminal, if **Read limits from the Claude Code statusline** is on | Lidget edits only the `statusLine` key in `~/.claude/settings.json`. |
 | Session logs in `~/.claude/projects` | At each refresh, and when the flyout opens | Lidget calculates the cost estimates from these logs. |
@@ -30,8 +30,11 @@ Lidget uses these rules to send as few requests as possible:
   Then Lidget waits until the recent response is 1 hour old, because the endpoint can report more limits.
 - After HTTP 429, Lidget sends no request until the `Retry-After` time. Without that header, Lidget waits 15 minutes.
   Lidget saves that time, so the wait continues after a restart of Lidget or Windows.
-- If the endpoint fails, the response that Claude Code saved, or current feed readings, keep the provider status OK.
-  Older readings stay visible, with the error message.
+- If the endpoint gives HTTP 429 or another temporary failure, Lidget keeps the newest response from Lidget or from Claude Code.
+  It removes a limit from that response when the reset time of the limit passes.
+- During this failure, a response that is less than 1 hour old, or current feed readings, keep the provider status OK.
+  Older readings stay visible, with their real age and the error message.
+- A refused login does not keep the response of Lidget, because the login can belong to another account.
 
 For each limit, the newest reading from any source wins.
 

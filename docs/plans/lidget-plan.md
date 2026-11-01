@@ -106,6 +106,7 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 | D51 | Approach | Pace rules: a difference of 5 percentage points or less is on pace. The run-out time uses the average rate of the current window, and shows only after 5% of the window. Severity colors (D20) and notifications (D28) do not use the pace. Window lengths come from the provider data: 5 hours and 7 days for Claude, and `windowDurationMins` for Codex. | The first requests of a window give a rate that changes too much. Colors and notifications stay predictable. | agent default |
 | D52 | Approach | Codex data: Lidget reads the `codex` bucket of `rateLimitsByLimitId`, and uses `rateLimits` only when the bucket is missing. It ignores an `account/rateLimits/updated` snapshot with another `limitId`. (Refines D12.) | The 0.163.0 schema calls `rateLimits` a single-bucket view for compatibility. Before this change, a model limit in a notification could replace the plan allowance. | agent default |
 | D53 | Approach | The flyout adds the history chart only while it is open, and the progress ring only during a refresh. The chart does not reload while the flyout is hidden. | A loaded LiveCharts chart handles each WPF frame. The WPF-UI ring only pauses its animation when it is hidden, and WPF keeps rendering frames. A hidden window keeps both, so the idle widget used CPU until Lidget quit. | agent default |
+| D54 | Approach | Claude data: after HTTP 429 or another temporary endpoint failure, Lidget keeps the newest response from Lidget or from Claude Code, at any age, until each limit resets. The status stays `Ok` for 1 hour. After that, the status is `Stale`, with the error message and the real age. A refused login does not keep the response of Lidget. (Refines D46.) | A 429 removed the last good response. When the saved copy passed 1 hour, the flyout fell back to a feed reading that was 4.5 hours old. | user |
 | D55 | Approach | Claude usage endpoint: without current feed readings, Lidget requests the endpoint at most one time in 30 minutes, not 15. (Refines D46.) | Requests every 15 minutes during idle time ended in HTTP 429 after about 2.25 hours on two nights. Anthropic does not publish the limit, so 30 minutes is a first value to measure. | user |
 
 ## Constraints
@@ -958,3 +959,17 @@ Each entry has a date, a revision, the commands, the results, and the open gates
   It logged "Update 0.2.1 is ready for the next start".
   The next start, at 6:14 AM, ran `0.2.1+2694632` and embedded the widget. The `Run` value points to `current\Lidget.exe`.
 - Open gates: the notification checks and the one-week check, which need time.
+
+### 2026-10-31 — Claude values after HTTP 429 (D54 and D55, revision after `8ab8d91`)
+
+- Symptom: the flyout showed no session row, 85% weekly, "Updated 4 h ago", and the rate-limit warning. The T3 Code usage page showed 97% session and 84% weekly.
+- History and log of the installed `0.2.1` (EDT):
+  - 1:24 AM: the last T3 Code feed reading before the gap. 3:00 AM: that session window reset.
+  - 2:56 AM to 5:11 AM: endpoint requests every 15 minutes passed. The 5:11 AM response had 3% session and 16% weekly, which are the T3 Code page values.
+  - 5:26 AM: HTTP 429, with a wait to 6:14 AM. `_lastEndpoint` became a failure with no limits.
+  - 5:56 AM: the saved response from 4:56 AM passed 1 hour. Only the feed reading from 1:24 AM stayed.
+- Finding: Lidget had the same values as T3 Code, and removed them at the 429. T3 Code keeps its last values when a probe fails (`resolveUsageLimitsAfterProbe`, in the installed `server.asar`).
+- The night before had the same pattern: requests every 15 minutes passed from 2:54 AM, and HTTP 429 came at 5:19 AM. T3 Code probes use the same login, so the exact share of Lidget in that limit is not known.
+- Not found: which T3 Code probe gave the 3% value. `cachedUsageUtilization` stayed at 4:56 AM during probes at 5:14, 5:42, and 5:56 AM.
+- A `rate_limit_event` can differ from the endpoint by 1 point: at 5:57 AM the event had 15% weekly, and the endpoint had 16% at 5:11 AM. The newest reading still wins.
+- Measure after the release: the number of "Anthropic rate-limited the usage request" log lines each night, with the 30-minute interval. The log had 12 such lines from October 28 to October 31.

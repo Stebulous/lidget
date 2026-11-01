@@ -49,7 +49,12 @@ public sealed class ClaudeCodeUsageCache
     /// Returns the saved response, if it is less than <see cref="MaxAge"/> old. Windows whose reset time has
     /// passed are left out. The file is parsed again only when it changes.
     /// </summary>
-    public ClaudeCachedUsage? Read()
+    public ClaudeCachedUsage? Read() => Read(MaxAge);
+
+    /// <summary>Returns the saved response at any age, to show while the usage endpoint fails.</summary>
+    public ClaudeCachedUsage? ReadLastKnown() => Read(TimeSpan.MaxValue);
+
+    private ClaudeCachedUsage? Read(TimeSpan maxAge)
     {
         var now = _time.GetUtcNow();
         ClaudeCachedUsage? usage;
@@ -58,7 +63,7 @@ public sealed class ClaudeCodeUsageCache
             usage = Load();
         }
 
-        if (usage is null || now - usage.FetchedAt > MaxAge || usage.FetchedAt - now > TimeSpan.FromMinutes(5))
+        if (usage is null || now - usage.FetchedAt > maxAge || usage.FetchedAt - now > TimeSpan.FromMinutes(5))
         {
             return null;
         }
