@@ -988,3 +988,15 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 231 tests.
 - Not run, because this release does not change them: the settings, notification, update, uninstall, display-scale, and idle CPU checks. A real HTTP 429 did not occur during the run, so `ClaudeProviderTests` covers the change from a good response to a 429.
 - Open gates: the nightly count of 429 log lines after the release (D55).
+
+### 2026-10-31 — Release 0.2.2 and the update from GitHub (revision `6f7bbd9`)
+
+- CI passed on `6f7bbd9`. The tag `v0.2.2` started the **Release** workflow, which passed.
+  The draft had the full package, a delta package from `0.2.1`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
+- Draft check: `Lidget-0.2.2-full.nupkg` has the ID `Lidget`, `Lidget.exe` with the version `0.2.2+6f7bbd9`, and `lidget-statusline.exe`.
+  The draft installer was not run. The QA ran on the local installer from `f0e3adf`, and the only later code change is the version number.
+- The agent published the release at 11:35 PM EDT as the latest release, with permission from the maintainer.
+- Update: the installed `0.2.2-local.1` started from the Start menu shortcut at 11:36 PM, and downloaded `0.2.2` from GitHub in 5 seconds.
+  It logged "Update 0.2.2 is ready for the next start".
+  The next start, at 11:36 PM, ran `0.2.2+6f7bbd9` and embedded the widget. The `Run` value points to `current\Lidget.exe`.
+- Open gates: the nightly count of 429 log lines after the release (D55), and the notification and one-week checks from `0.2.1`.
