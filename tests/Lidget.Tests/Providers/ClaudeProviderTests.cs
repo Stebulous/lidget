@@ -201,7 +201,7 @@ public class ClaudeProviderTests : IDisposable
         Assert.Equal(40, snapshot.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
 
         // Old feed readings do not stop the next request.
-        _time.Advance(ClaudeProvider.FeedFreshness + TimeSpan.FromMinutes(1));
+        _time.Advance(ClaudeProvider.EndpointInterval - TimeSpan.FromMinutes(5));
         await provider.RefreshAsync(CancellationToken.None);
         Assert.Equal(2, handler.Requests.Count);
     }
@@ -286,7 +286,7 @@ public class ClaudeProviderTests : IDisposable
         Assert.Equal(55, pushed.Limits.Single(l => l.Kind == LimitKind.Session).UsedPercent);
     }
     [Fact]
-    public async Task TheEndpointIsRequestedAtMostEveryFifteenMinutes()
+    public async Task TheEndpointIsRequestedAtMostEveryThirtyMinutesWhileIdle()
     {
         WriteCredentials();
         var handler = new FakeHttpHandler((_, _) => FakeHttpHandler.Json(HttpStatusCode.OK, Fixtures.Read("claude/usage-pro.json")));

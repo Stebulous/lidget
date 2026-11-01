@@ -24,7 +24,7 @@ A wait that the endpoint asks for can come from a request of any of them.
 Lidget uses these rules to send as few requests as possible:
 
 - A recent response is the last successful response to Lidget, or the response that Claude Code saved, whichever is newer.
-- If the recent response is less than 15 minutes old, Lidget skips the request.
+- If the recent response is less than 30 minutes old, Lidget skips the request.
 - A feed reading is current for 10 minutes.
   Feeds can have a current session reading and a current weekly reading.
   Then Lidget waits until the recent response is 1 hour old, because the endpoint can report more limits.

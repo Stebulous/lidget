@@ -138,7 +138,7 @@ Anthropic limits the number of requests to the Claude usage endpoint.
 After a few requests, the endpoint can ask Lidget to wait for about an hour.
 Lidget uses these sources to send fewer requests:
 
-- **The response that Claude Code saved.** When Claude Code, or the Claude Code CLI that T3 Code starts, gets the usage limits, it saves them in `~/.claude.json`. Lidget reads that copy, and does not send a request while the copy is less than 15 minutes old. This source has no setting.
+- **The response that Claude Code saved.** When Claude Code, or the Claude Code CLI that T3 Code starts, gets the usage limits, it saves them in `~/.claude.json`. Lidget reads that copy, and does not send a request while the copy is less than 30 minutes old. This source has no setting.
 - **A feed.** A feed gives Lidget current Claude values after each response, between endpoint requests:
 
 | Feed | Use it when | How it works |

@@ -21,7 +21,7 @@ public sealed class ClaudeProvider : IUsageProvider
     /// Without current feed readings, Lidget requests the endpoint at most one time in this interval. A response
     /// that Claude Code saved counts as a request.
     /// </summary>
-    public static readonly TimeSpan EndpointInterval = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan EndpointInterval = TimeSpan.FromMinutes(30);
 
     /// <summary>The wait after HTTP 429 when the response has no <c>Retry-After</c> header.</summary>
     public static readonly TimeSpan DefaultRateLimitWait = TimeSpan.FromMinutes(15);
