@@ -30,6 +30,7 @@ Installed copies of Lidget update only from published releases. A draft release 
    The workflow also downloads the previous release, so that Velopack can make a delta package.
 5. Download `Lidget-win-Setup.exe` from the draft release, install it, and check that the widget shows live data.
 6. Write the release notes in the draft. List the user-visible changes and the install steps.
+   Say that copies installed with `Lidget-win-Setup.exe` update automatically. Do not list the earlier versions that get the update.
 7. Publish the draft:
 
    ```powershell
