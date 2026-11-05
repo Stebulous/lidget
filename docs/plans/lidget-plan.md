@@ -108,6 +108,7 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 | D53 | Approach | The flyout adds the history chart only while it is open, and the progress ring only during a refresh. The chart does not reload while the flyout is hidden. | A loaded LiveCharts chart handles each WPF frame. The WPF-UI ring only pauses its animation when it is hidden, and WPF keeps rendering frames. A hidden window keeps both, so the idle widget used CPU until Lidget quit. | agent default |
 | D54 | Approach | Claude data: after HTTP 429 or another temporary endpoint failure, Lidget keeps the newest response from Lidget or from Claude Code, at any age, until each limit resets. The status stays `Ok` for 1 hour. After that, the status is `Stale`, with the error message and the real age. A refused login does not keep the response of Lidget. (Refines D46.) | A 429 removed the last good response. When the saved copy passed 1 hour, the flyout fell back to a feed reading that was 4.5 hours old. | user |
 | D55 | Approach | Claude usage endpoint: without current feed readings, Lidget requests the endpoint at most one time in 30 minutes, not 15. (Refines D46.) | Requests every 15 minutes during idle time ended in HTTP 429 after about 2.25 hours on two nights. Anthropic does not publish the limit, so 30 minutes is a first value to measure. | user |
+| D56 | Scope | Later list, sorted on 2026-11-05. Next: usage trends and forecasts, and banked limit resets. Parked: code signing, winget, `win-arm64` builds, more providers, more accounts, and a CLI or local HTTP API. Dropped: MSIX and the Microsoft Store, and a direct Codex endpoint fallback. | Signing costs too much for one open-source project now, and winget waits for signing. The Velopack installer and updates are sufficient without the Store. A direct Codex fallback must read the Codex login, and Codex owns its login (D12). Each new provider needs an account for the live checks. | user |
 
 ## Constraints
 
@@ -630,7 +631,7 @@ The release stays local until the user approves publication.
 | Guarded refresh races with a Claude Code refresh and logs the CLI out | Low / high | Read the file again before and after refresh, write atomically, retry one time. The one-week CLI login check in QA. |
 | Windows update changes the taskbar structure and embedding fails | Medium / high | Fallback pill and toast (D17). All taskbar code is in `TaskbarHost`. |
 | `codex app-server` protocol changes between Codex versions | Medium / medium | Tolerant parsing, recorded tested version, `Error` status with the Codex version in the log. |
-| Codex CLI is not installed for a user who has a ChatGPT plan | Medium / low | `NotInstalled` status with an install instruction. A direct endpoint fallback is listed in [Later](#later). |
+| Codex CLI is not installed for a user who has a ChatGPT plan | Medium / low | `NotInstalled` status with an install instruction. A direct endpoint fallback was dropped (D56). |
 | Unsigned installer triggers SmartScreen and stops installs | High / medium | README explains the warning. Signing is listed in [Later](#later). |
 | Session log formats change and cost estimates become wrong | Medium / low | Tolerant parsing, an "estimate" label, and a list of unpriced models under the cost tiles. |
 | A rename after the first public release breaks automatic updates, because the Velopack package ID changes | Medium / high | Choose the final name before the first public release (D33). |
@@ -646,16 +647,26 @@ The release stays local until the user approves publication.
 
 ## Later
 
-- More providers: Cursor, GitHub Copilot, Gemini or Antigravity, OpenRouter, Z.ai.
-- A direct Codex endpoint fallback for users without the Codex CLI.
+D56 sorts these candidates. Record a new decision before you start one.
+
+Next:
+
+- Usage trends and forecasts from history across limit windows. D50 gives the run-out time in the current window only.
+- Banked limit resets: show the resets that a provider gives the user, and their expiry times.
+
+Parked:
+
+- Code signing with Azure Trusted Signing.
+- winget publication, after code signing.
+- `win-arm64` builds. Arm64 devices can run the `win-x64` build with emulation.
+- More providers: Cursor, GitHub Copilot, Gemini or Antigravity, OpenRouter, Z.ai. Each one needs an account for the live checks.
 - Account switching and multiple accounts.
 - A CLI and a local HTTP API for limit data, like OpenUsage.
+
+Not sorted:
+
 - Widgets on secondary monitors and support for a vertical taskbar.
 - An optional tray icon.
-- Code signing with Azure Trusted Signing.
-- MSIX packaging, winget publication, and a Microsoft Store listing.
-- `win-arm64` builds.
-- Usage trends and forecasts from history across limit windows. D50 gives the run-out time in the current window only.
 
 ## Evidence log
 
