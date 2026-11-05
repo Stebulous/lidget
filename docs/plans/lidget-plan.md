@@ -1,6 +1,6 @@
 # Lidget — Development plan
 
-> Status: Released (0.2.1, 2026-10-29) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
+> Status: Released (0.2.2, 2026-10-31) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
@@ -1000,3 +1000,34 @@ Each entry has a date, a revision, the commands, the results, and the open gates
   It logged "Update 0.2.2 is ready for the next start".
   The next start, at 11:36 PM, ran `0.2.2+6f7bbd9` and embedded the widget. The `Run` value points to `current\Lidget.exe`.
 - Open gates: the nightly count of 429 log lines after the release (D55), and the notification and one-week checks from `0.2.1`.
+
+### 2026-11-05 — Claude 429 lines and token refreshes after 0.2.2 (revision `6f7bbd9`)
+
+- Source: the logs of the installed copy in `%LOCALAPPDATA%\LidgetData\logs`, from 2026-10-29 to 2026-11-04.
+  The installed copy ran `0.2.1+2694632` until 11:36 PM on October 31, and `0.2.2+6f7bbd9` after that.
+- Count: new "Anthropic rate-limited the usage request" lines, for each night in local time.
+  Lines with "before the restart" are not counted, because they restore a saved wait and do not come from a new request.
+
+  | Night | Version | New 429 lines | Times |
+  | --- | --- | --- | --- |
+  | October 29 to 30 | `0.2.1` | 5 | 11:15 PM to 5:19 AM |
+  | October 30 to 31 | `0.2.1` | 5 | 12:11 AM to 6:16 AM |
+  | October 31 to November 1 | `0.2.2` | 2 | 11:51 PM and 12:21 AM |
+  | November 1 to 2 | `0.2.2` | 4 | 11:42 PM to 2:50 AM |
+  | November 2 to 3 | `0.2.2` | 4 | 6:38 PM to 2:59 AM |
+  | November 3 to 4 | `0.2.2` | 0 | — |
+  | November 4 to 5 | `0.2.2` | 0 | — |
+
+- After the first 429 of a night, the next requests came about 1 hour apart, and most of them also got HTTP 429.
+- The first 429 on October 31 came 15 minutes after the update to `0.2.2`.
+- Lidget did not run from 11:13 AM to 3:14 PM on November 3.
+  It ran for the two nights with no 429 lines.
+- The log does not show which requests passed, and T3 Code probes use the same login.
+  Thus, the share of Lidget in each 429 is not known.
+- Token refresh: Lidget refreshed the Claude access token 8 times in the 7 days.
+  Two refreshes timed out, on November 1 and November 4. Each time, the next try 5 minutes later passed.
+  This closes the open gate "the refresh request is not tested live" from the T0.2 entry.
+  This entry does not check that the Claude Code login stayed valid.
+- Open gates:
+  - The nightly count of 429 lines (D55) continues. Two nights with no 429 lines do not yet prove that 30 minutes is enough.
+  - The notification checks and the one-week check of the Claude Code login.
