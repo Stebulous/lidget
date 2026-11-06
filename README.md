@@ -1,5 +1,12 @@
 # Lidget
 
+[![CI](https://github.com/Stebulous/lidget/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Stebulous/lidget/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Stebulous/lidget)](https://github.com/Stebulous/lidget/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Stebulous/lidget/total)](https://github.com/Stebulous/lidget/releases)
+[![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D4)](docs/user-guide.md)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![License: MIT](https://img.shields.io/github/license/Stebulous/lidget)](LICENSE)
+
 Lidget is a Windows 11 taskbar widget that shows the usage limits of AI subscription plans.
 It tracks Claude (Pro and Max plans, through Claude Code) and Codex (ChatGPT plans, through the Codex CLI).
 The name joins "limits" and "widget".
