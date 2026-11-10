@@ -26,6 +26,8 @@ Read [the documentation index](docs/README.md) before broad repository work.
 - Keep the Velopack package ID `Lidget` in `AppInfo`. Installed copies update only from releases with that ID.
 - Keep user data in `%LOCALAPPDATA%\LidgetData`. Velopack deletes the install folder at install and uninstall.
 - Respect the `Retry-After` time of the Claude usage endpoint. Do not add requests to that endpoint.
+- Redeem a banked reset only after the user confirms it. Save the idempotency key before the request.
+  A test or QA check must not spend a real reset without the maintainer's permission.
 
 ## Verification
 

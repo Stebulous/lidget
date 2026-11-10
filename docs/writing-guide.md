@@ -42,7 +42,7 @@ Do not change the words of this text:
 
 | Term | Meaning |
 | --- | --- |
-| Widget | The Lidget element in the Windows taskbar. It shows a logo, a bar, and a percentage for each provider. |
+| Widget | The Lidget element in the Windows taskbar. It shows a logo with a bar and a percentage, or a logo in two rings, for each provider. |
 | Flyout | The window that opens above the widget when you click it. |
 | Pill | The small floating window that shows the widget when Lidget cannot put it in the taskbar. |
 | Provider | A subscription service that Lidget tracks: Claude or Codex. |

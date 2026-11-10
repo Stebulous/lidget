@@ -25,8 +25,26 @@ Keep logic out of `Lidget.App` when a test can cover it.
 4. The scheduler publishes each snapshot to these consumers:
    - `HistoryRecorder`, which stores each new reading in `history.db`.
    - `ThresholdEvaluator`, which returns the notifications to show.
+   - `ResetTracker`, which compares the banked resets with the stored resets, and writes reset events to `history.db`.
+   - `ResetExpiryEvaluator`, which returns the expiry warnings of banked resets.
    - `UsageViewModel`, which updates the widget and the flyout.
 5. `CostTracker` scans the session logs separately, at the refresh interval, and publishes one `CostSummary` for each provider.
+
+## Banked resets
+
+A `ProviderSnapshot` can have a `ResetSummary`: the count of banked resets and, if the provider gave it, the list of `BankedReset` values.
+If a refresh fails, the scheduler keeps the last summary.
+
+Providers that can redeem implement `IResetRedeemer`.
+`ResetRedemptionService` handles each redemption:
+
+1. It lets one redemption run for each provider.
+2. `RedeemKeyStore` saves the idempotency key before the request. If the save fails, no request is sent.
+3. After a final result, it removes the key. If the result shows that a reset was spent, it tells `ResetTracker`.
+4. After a final result, it raises `Completed`, and the app refreshes the providers.
+
+`ResetsViewModel` sends a redemption only after the user confirms it in the flyout.
+`CodexProvider` also implements `IResetDetailSource`, so that the flyout can ask for the list of resets when it opens.
 
 A `LimitWindow` always stores the used share, from 0 to 100.
 The view models and `UsageFormat` change it to the share that is left when **Show limits as** is Remaining.
@@ -41,7 +59,7 @@ The wait doubles after each 429, up to 1 hour, and is never shorter than the `Re
 
 ## Claude provider
 
-`ClaudeProvider` combines four sources. For each limit, the newest reading wins.
+`ClaudeProvider` combines four limit sources. For each limit, the newest reading wins.
 
 | Class | Source |
 | --- | --- |
@@ -49,6 +67,10 @@ The wait doubles after each 429, up to 1 hour, and is never shorter than the `Re
 | `ClaudeCodeUsageCache` | The usage response that Claude Code saved in `~/.claude.json` |
 | `ClaudeT3CodeSource` | The T3 Code provider logs |
 | `ClaudeStatusLineSource` | `claude-statusline.json`, which `lidget-statusline.exe` writes |
+| `ClaudeResetMapper` and `ClaudeResetClient` | The banked resets in the usage endpoint response, and the redemption request |
+
+`ClaudeAccountConfig` reads the organization ID and the Claude Code version from `~/.claude.json`.
+The usage request and the reset request send the Claude Code `User-Agent` with that version (D67).
 
 Both feeds implement `IClaudeLimitFeed`.
 `ClaudeCodeUsageCache` is not a feed: it gives a full usage response, like the endpoint, and `ClaudeUsageMapper` maps both.
@@ -86,9 +108,12 @@ Do not copy code from FluentFlyout (GPL-3.0). Lidget uses the same technique wit
 | Store | Class | Notes |
 | --- | --- | --- |
 | `settings.json` | `SettingsStore` | `LidgetSettings` defines each key and its default. Writes are atomic. |
-| `history.db` | `HistoryStore` | One row for each reading, keyed by provider, limit, and observation time. `Migrations` holds the schema versions. |
+| `history.db` | `HistoryStore` | One row for each reading, keyed by provider, limit, and observation time. The `banked_resets` and `reset_events` tables hold the reset history. `Migrations` holds the schema versions. |
 | `cost-cache.db` | `CostCache` | Parsed log entries, so that a scan reads only new log data. |
 | `notifications.json` | `ThresholdEvaluator` | The thresholds that notified in each limit window. |
 | `claude-usage-wait.json` | `ClaudeProvider` | The end of a rate-limit wait, so that a restart does not send a request before the `Retry-After` time. |
+| `claude-resets.json` | `ClaudeProvider` | The last Claude banked resets, so that a restart does not send a request for them. |
+| `reset-redemptions.json` | `RedeemKeyStore` | The idempotency key of a redemption without a final result. |
+| `reset-warnings.json` | `ResetExpiryEvaluator` | The expiry warnings that each banked reset gave. |
 
 `AtomicFile` writes a temporary file and then replaces the target, so that a crash does not leave a partial file.

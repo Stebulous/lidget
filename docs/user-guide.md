@@ -40,7 +40,7 @@ The uninstaller keeps the data folder `%LOCALAPPDATA%\LidgetData`. You can delet
 
 ## Read the widget
 
-The widget shows one logo, bar, and percentage for each provider that is on.
+In the default Bars style, the widget shows one logo, bar, and percentage for each provider that is on.
 
 - By default, the percentage is the share that is left of the tightest limit.
   A full bar means that most of the limit is left.
@@ -50,6 +50,15 @@ The widget shows one logo, bar, and percentage for each provider that is on.
 - An exclamation mark on the logo means that the provider has a problem. The flyout shows the message.
 - A short vertical tick on the bar is the even-pace marker. See [Read the pace](#read-the-pace).
   To remove it, turn off **Show pace in the taskbar** in Settings.
+- A blue dot on the logo means that the provider has a banked reset that you can use.
+  The dot is amber if a reset expires in the next 24 hours. See [Use a banked reset](#use-a-banked-reset).
+
+To show rings instead of bars, set **Widget style** to Rings in Settings.
+The Rings style shows the logo in two rings, without a percentage:
+
+- The outer ring is the weekly limit, and the inner ring is the session limit.
+- The length of a ring follows **Show limits as**, and the color follows the used share, as on a bar.
+- A gray ring means that the provider has a problem.
 
 Hover over the widget to see the plan, each limit, each reset countdown, and each pace.
 Right-click the widget to open a menu with **Refresh**, **Settings**, and **Quit Lidget**.
@@ -72,7 +81,10 @@ For each provider, the flyout shows:
 - The pace of each limit, with a marker on the bar. See [Read the pace](#read-the-pace).
 - Cost estimates for today, the last 7 days, and the last 30 days.
   A cost estimate is the API price of the tokens in your local session logs. Your subscription price does not change.
+- A **Resets** row, if the provider gave banked reset data. See [Use a banked reset](#use-a-banked-reset).
 - A message, if the provider has a problem.
+
+If the flyout is taller than the screen, scroll the provider cards.
 
 The **History** chart shows each limit for the last 24 hours or the last 7 days.
 Each step in a line is a new reading. A vertical jump is usually a limit reset.
@@ -104,6 +116,39 @@ Lidget shows no run-out time in the first 5% of a window, because a few requests
 Lidget shows no pace for a limit without a reset time, for example a window that no request has started.
 Lidget also shows no pace when the window length is not known, for example a Codex Free plan limit without a reported length.
 
+## Use a banked reset
+
+A banked reset is a reset that a provider gives to your account.
+When you use it, the provider resets the limits that the reset covers.
+Each reset has an expiry time.
+
+The **Resets** row shows the number of available resets and the time to the next expiry.
+Select the row to open the list of resets and the **History** list.
+
+1. Select **Use reset** next to a reset.
+   Lidget shows the reset, its expiry time, and the current usage.
+2. Read the current usage. If little of the limit is used, the reset gives little.
+3. Select **Use reset** in the confirmation, or select **Cancel**.
+
+Expected result: the flyout shows "The limits were reset.", and the limits update in a few seconds.
+If the provider has no limit to reset, the flyout shows a message, and the reset stays available.
+Lidget sends no request before you confirm.
+
+For Claude, only the reset that Claude marks as next shows **Use reset**.
+Claude gives reset data only in the usage endpoint response, so the count can be up to 6 hours old.
+
+The **History** list shows these events:
+
+| Text | Meaning |
+| --- | --- |
+| Received | Lidget saw the reset for the first time. |
+| Used in Lidget | You used the reset in Lidget. |
+| Used in another app | The reset went away before its expiry time, for example after you used it in Codex or T3 Code. |
+| Expired | The expiry time passed. |
+
+Lidget shows a notification 24 hours before a reset expires, and a second one 2 hours before.
+To stop these notifications, turn off **Warn before a reset expires** in Settings.
+
 ## Change settings
 
 Settings save at once. Open Settings from the widget menu or from the flyout.
@@ -112,12 +157,15 @@ Settings save at once. Open Settings from the widget menu or from the flyout.
 | --- | --- | --- |
 | **Claude**, **Codex** | On | Shows or hides the provider in the widget, the flyout, and the chart. |
 | **Show limits as** | Remaining | Shows the share that is left, or the used share. It applies to the widget, the flyout, the chart, and notifications. |
-| **Percentage in the taskbar** | Tightest limit | Selects the limit in the widget: the tightest limit, the session limit, or the weekly limit. |
+| **Widget style** | Bars | Shows a bar and a percentage for one limit, or rings for the session and weekly limits. |
+| **Percentage in the taskbar** | Tightest limit | Selects the limit in the widget: the tightest limit, the session limit, or the weekly limit. The Rings style does not use it. |
 | **Show pace in the taskbar** | On | Shows the even-pace marker on the widget bars. The flyout always shows the pace. |
+| **Show resets in the taskbar** | On | Shows a dot on the logo when the provider has a banked reset. |
 | **Distance from the system tray** | 4 | Moves the widget left of the system tray, in device-independent pixels (0 to 400). |
 | **Refresh interval** | 5 minutes | Sets the time between refreshes, from 1 to 30 minutes. |
 | **Warn when usage passes these percentages** | 80, 95 | Sets the used percentages that show a notification. |
 | **Notify when a limit resets** | Off | Shows a notification when a limit window that passed a threshold resets. |
+| **Warn before a reset expires** | On | Shows a notification 24 hours and 2 hours before a banked reset expires. |
 | **Read limits from the Claude Code statusline** | Off | Turns on the statusline feed. See [Get current Claude values](#get-current-claude-values). |
 | **Read limits from T3 Code** | On | Turns on the T3 Code feed. See [Get current Claude values](#get-current-claude-values). |
 | **Start with Windows** | On | Starts Lidget when you sign in to Windows. |

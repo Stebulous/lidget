@@ -22,6 +22,7 @@ Run them only on a computer where you can accept these changes.
 Expected result:
 
 - Within 10 seconds, the widget shows a logo, a bar, and a percentage for each provider.
+  If a provider has a banked reset, its logo has a dot.
 - The Start menu has a Lidget shortcut. The desktop has no Lidget shortcut.
 - `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` has the value `Lidget`, with the path `%LOCALAPPDATA%\Lidget\current\Lidget.exe`.
 
@@ -37,7 +38,9 @@ Expected result:
 | Change the display scale to 100%, 150%, and 200% | At each scale, the widget stays in the taskbar, next to the system tray. If the widget would cover taskbar buttons, it moves to the bottom-right corner of the screen. It goes back into the taskbar when there is space again. |
 | Set the taskbar alignment to left | The widget stays at the right side of the taskbar, left of the Widgets button. |
 | Turn on **Automatically hide the taskbar** | The widget hides and shows with the taskbar. |
-| Change the Windows mode from dark to light | The widget text, bars, and pace markers stay readable on the light taskbar. |
+| Change the Windows mode from dark to light | The widget text, bars, pace markers, rings, and reset dots stay readable on the light taskbar. |
+| Set **Widget style** to Rings | Each provider shows its logo in two rings: weekly outside, session inside. The widget gets narrower at once. |
+| Read the widget while a provider has a banked reset | A blue dot shows on the logo, in both styles. It is amber if a reset expires within 24 hours. |
 | Start Lidget with `LIDGET_FORCE_FALLBACK=1` | A toast says "Lidget could not join the taskbar". The widget shows in the bottom-right corner. |
 
 ## Flyout
@@ -51,6 +54,10 @@ Expected result:
 | Read the limit rows | Each bar with a reset time has a pace marker. The text under the bar shows the pace, for example "On pace". |
 | Read the cost tiles | Each provider shows Today, 7 days, and 30 days, and the label "API-equivalent estimate". |
 | Select **24 h** and **7 d** in the history chart | The chart shows each limit for the selected range. |
+| Select the **Resets** row of a provider with banked resets | The list shows each reset with its expiry time and **Use reset**. The **History** list shows the reset events. |
+| Select **Use reset**, and then **Cancel** | The confirmation shows the reset, its expiry time, and the current usage, and then closes. The log has no "Redemption of" message. |
+| Select **Use reset**, and then **Use reset** in the confirmation. Do this only with a reset that you want to spend. | The flyout shows "The limits were reset.". The limits and the count update. The history shows "Used in Lidget". |
+| Open the flyout with a **Resets** row open on a small screen | The flyout stays below the top of the screen, and the provider cards scroll. |
 
 ## Settings
 
@@ -77,6 +84,7 @@ Expected result:
 | Restart Lidget while a limit is above a threshold | No toast shows again for that threshold. |
 | Turn on **Notify when a limit resets**, and wait for a limit window that passed a threshold to reset | One toast says that the limit reset. |
 | Click a toast | The flyout opens. |
+| A banked reset is 24 hours, and then 2 hours, from its expiry time | One toast shows at each time. A restart does not show it again. |
 
 ## Update
 
