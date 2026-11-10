@@ -12,16 +12,13 @@ public sealed record ClaudeResetResponse(HttpStatusCode Status, string? Result);
 
 /// <summary>
 /// Redeems a Claude banked reset (plan decision D61). The request is a port of <c>consumeClaudeResetCredit</c>
-/// in T3 Code (MIT): the same URL, the same authorization and <c>anthropic-beta</c> headers, and the same
-/// body fields. Lidget sends its own <c>User-Agent</c>, as it does for the usage request.
+/// in T3 Code (MIT): the same URL, the same authorization, <c>anthropic-beta</c>, and <c>User-Agent</c>
+/// headers, and the same body fields (plan decision D67).
 /// </summary>
 public sealed partial class ClaudeResetClient(HttpClient http, string accountConfigPath)
 {
     /// <summary>The time limit of one request. T3 Code uses the same value.</summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(25);
-
-    /// <summary>A configuration file larger than this is not read.</summary>
-    private const long MaxFileBytes = 64 * 1024 * 1024;
 
     /// <summary>Whether <paramref name="id"/> has the form that the server accepts for a request ID.</summary>
     public static bool IsRequestId(string? id) => id is not null && RequestId().IsMatch(id);
@@ -30,31 +27,7 @@ public sealed partial class ClaudeResetClient(HttpClient http, string accountCon
     /// Reads the organization of the signed-in account from the Claude Code configuration file
     /// (<c>oauthAccount.organizationUuid</c> in <c>~/.claude.json</c>), or returns null.
     /// </summary>
-    public string? ReadOrganizationId()
-    {
-        try
-        {
-            var info = new FileInfo(accountConfigPath);
-            if (!info.Exists || info.Length > MaxFileBytes)
-            {
-                return null;
-            }
-
-            // Claude Code replaces the file while it runs, so allow other processes to write and delete it.
-            using var stream = new FileStream(accountConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var document = JsonDocument.Parse(stream);
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("oauthAccount", out var account) && account.ValueKind == JsonValueKind.Object
-                && account.TryGetProperty("organizationUuid", out var id) && id.ValueKind == JsonValueKind.String
-                && id.GetString()!.Trim() is { Length: > 0 } organization
-                    ? organization
-                    : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return null;
-        }
-    }
+    public string? ReadOrganizationId() => ClaudeAccountConfig.ReadOrganizationId(accountConfigPath);
 
     /// <summary>Sends one redemption request. <paramref name="requestId"/> is the idempotency key.</summary>
     public async Task<ClaudeResetResponse> SendAsync(string accessToken, string organizationId, string grantId, string requestId, CancellationToken ct)
@@ -65,6 +38,7 @@ public sealed partial class ClaudeResetClient(HttpClient http, string accountCon
         using var request = new HttpRequestMessage(HttpMethod.Post, ClaudeEndpoints.ResetRateLimits(organizationId));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("anthropic-beta", ClaudeEndpoints.BetaHeader);
+        request.Headers.TryAddWithoutValidation("User-Agent", ClaudeEndpoints.UserAgent(ClaudeAccountConfig.ReadClientVersion(accountConfigPath)));
         request.Content = JsonContent.Create(new Dictionary<string, string>
         {
             ["program"] = ClaudeResetMapper.Program,

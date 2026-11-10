@@ -74,8 +74,29 @@ public static partial class ClaudeResetMapper
 
         var paused = entry.TryGetProperty("paused", out var p) && p.ValueKind == JsonValueKind.True;
         var usableNow = entry.TryGetProperty("usable_now", out var u) && u.ValueKind == JsonValueKind.True;
-        return new BankedReset(id.GetString()!, null, count, null, expiresAt) { IsUsable = usableNow && !paused };
+        var startsAt = entry.TryGetProperty("starts_at", out var starts) && starts.ValueKind == JsonValueKind.String ? ParseTime(starts.GetString()!) : null;
+        return new BankedReset(id.GetString()!, Label(entry), count, startsAt, expiresAt) { IsUsable = usableNow && !paused };
     }
+
+    /// <summary>The <c>label</c> of a grant, for example "Free limit reset", or null. T3 Code does not show it.</summary>
+    private static string? Label(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("label", out var label) || label.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var text = string.Join(' ', label.GetString()!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return text.Length switch
+        {
+            0 => null,
+            > MaxLabelLength => text[..MaxLabelLength].TrimEnd() + "…",
+            _ => text,
+        };
+    }
+
+    /// <summary>A longer label is cut, so that a changed server value cannot fill the flyout.</summary>
+    private const int MaxLabelLength = 120;
 
     private static DateTimeOffset? ParseTime(string text) =>
         CompleteTimestamp().IsMatch(text)

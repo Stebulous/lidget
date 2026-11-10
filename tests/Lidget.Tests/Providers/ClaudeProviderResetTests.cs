@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Lidget.Core.Models;
+using Lidget.Providers;
 using Lidget.Providers.Claude;
 using Microsoft.Extensions.Time.Testing;
 
@@ -42,6 +43,8 @@ public class ClaudeProviderResetTests : IDisposable
             config["oauthAccount"]!["organizationUuid"] = organization;
         }
 
+        config["lastReleaseNotesSeen"] = "2.1.300";
+
         File.WriteAllText(ConfigPath, config.ToJsonString());
 
         // The cache reads the file again only when its time or its length changes. Two fast writes can have the same time.
@@ -52,10 +55,11 @@ public class ClaudeProviderResetTests : IDisposable
 
     private ClaudeProvider CreateProvider(FakeHttpHandler handler)
     {
-        var http = new HttpClient(handler);
+        // The app client, with the Lidget User-Agent as a default header. The Claude requests replace it.
+        var http = LidgetHttp.Create(handler);
         return new ClaudeProvider(
             new ClaudeCredentialStore(http, _time, claudeHome: _dir.Path),
-            new ClaudeUsageClient(http, _time),
+            new ClaudeUsageClient(http, _time, ConfigPath),
             _time,
             _log,
             cache: new ClaudeCodeUsageCache(ConfigPath, _time),
@@ -94,6 +98,9 @@ public class ClaudeProviderResetTests : IDisposable
 
         var request = Assert.Single(handler.Requests).Request;
         Assert.Equal("https://api.anthropic.com/api/oauth/usage?cedar_ember=1", request.RequestUri!.AbsoluteUri);
+
+        // Without a version in ~/.claude.json, the request uses the fallback version.
+        Assert.Equal($"claude-cli/{ClaudeAccountConfig.FallbackClientVersion} (external, cli)", request.Headers.UserAgent.ToString());
         Assert.Equal(ProviderStatus.Ok, snapshot.Status);
         Assert.Equal(2, snapshot.Limits.Count);
         Assert.Equal(3, snapshot.Resets!.AvailableCount);
@@ -271,6 +278,7 @@ public class ClaudeProviderResetTests : IDisposable
         Assert.Equal("https://api.anthropic.com/api/organizations/org-1/reset_rate_limits", request.RequestUri!.AbsoluteUri);
         Assert.Equal("Bearer access-1", request.Headers.Authorization!.ToString());
         Assert.Equal("oauth-2025-04-20", Assert.Single(request.Headers.GetValues("anthropic-beta")));
+        Assert.Equal("claude-cli/2.1.300 (external, cli)", request.Headers.UserAgent.ToString());
         Assert.Equal("application/json", request.Content!.Headers.ContentType!.MediaType);
 
         var fields = JsonNode.Parse(body!)!.AsObject();

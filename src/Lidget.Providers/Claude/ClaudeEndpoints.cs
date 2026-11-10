@@ -21,4 +21,10 @@ internal static class ClaudeEndpoints
     public const string ClientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
     public const string Scopes = "user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload";
     public const string BetaHeader = "oauth-2025-04-20";
+
+    /// <summary>
+    /// The <c>User-Agent</c> of the usage and reset requests, the same as in T3 Code. The usage endpoint gives the
+    /// <c>cedar_ember</c> block only to this user agent (plan decision D67).
+    /// </summary>
+    public static string UserAgent(string clientVersion) => $"claude-cli/{clientVersion} (external, cli)";
 }

@@ -10,7 +10,7 @@ public static class ResetFormat
     /// <summary>A reset in its last 24 hours shows in amber (plan decision D64).</summary>
     public static readonly TimeSpan ExpiringSoon = TimeSpan.FromHours(24);
 
-    /// <summary>The text for a reset without a provider title. Claude grants have no title.</summary>
+    /// <summary>The text for a reset without a provider title.</summary>
     public const string DefaultTitle = "Limit reset";
 
     public static string Title(string? title) => string.IsNullOrWhiteSpace(title) ? DefaultTitle : title;

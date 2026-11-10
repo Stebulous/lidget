@@ -32,13 +32,15 @@ public class ClaudeResetMapperTests
         Assert.Equal(new DateTimeOffset(2026, 11, 5, 7, 59, 0, TimeSpan.Zero), next.ExpiresAt);
         Assert.True(next.IsUsable);
         Assert.True(next.CanRedeemNow);
-        Assert.Null(next.Title);
-        Assert.Null(next.GrantedAt);
+        Assert.Equal("Free limit reset", next.Title);
+        Assert.Equal(new DateTimeOffset(2026, 10, 6, 7, 59, 0, TimeSpan.Zero), next.GrantedAt);
 
         // Claude redeems only the next grant.
         var second = summary.Resets[1];
         Assert.True(second.IsUsable);
         Assert.False(second.CanRedeemNow);
+        Assert.Null(second.Title);
+        Assert.Null(second.GrantedAt);
 
         Assert.False(summary.Resets[2].IsUsable);
         Assert.False(summary.Resets[3].IsUsable);
@@ -92,6 +94,34 @@ public class ClaudeResetMapperTests
         Assert.Null(summary.NextResetId);
         Assert.Equal(2, summary.Resets!.Count);
         Assert.All(summary.Resets!, r => Assert.False(r.CanRedeemNow));
+    }
+
+    [Theory]
+    [InlineData("\"   \"", null)]
+    [InlineData("42", null)]
+    [InlineData("\"One full limit reset (November 2026)\"", "One full limit reset (November 2026)")]
+    public void UsesTheLabelOfAGrantAsTheTitle(string label, string? title)
+    {
+        var summary = Map($$$"""
+            {"cedar_ember":{"eligible":true,"next_grant_id":"grant_a1","grants":[
+              {"id":"grant_a1","label":{{{label}}},"resets_left":1,"ends_at":"2026-11-05T07:59:00Z","usable_now":true}]}}
+            """);
+
+        Assert.Equal(title, Assert.Single(summary!.Resets!).Title);
+    }
+
+    [Fact]
+    public void CutsALongLabel()
+    {
+        var label = new string('a', 300);
+        var summary = Map($$$"""
+            {"cedar_ember":{"eligible":true,"next_grant_id":"grant_a1","grants":[
+              {"id":"grant_a1","label":"{{{label}}}","resets_left":1,"ends_at":"2026-11-05T07:59:00Z","usable_now":true}]}}
+            """);
+
+        var title = Assert.Single(summary!.Resets!).Title!;
+        Assert.Equal(121, title.Length);
+        Assert.EndsWith("…", title, StringComparison.Ordinal);
     }
 
     [Theory]
