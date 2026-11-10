@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Lidget.Providers.Claude;
 
-public sealed class ClaudeProvider : IUsageProvider
+public sealed class ClaudeProvider : IUsageProvider, IResetRedeemer
 {
     /// <summary>Feed readings newer than this are current. Lidget then shows them without an endpoint request.</summary>
     public static readonly TimeSpan FeedFreshness = TimeSpan.FromMinutes(10);
@@ -23,6 +23,12 @@ public sealed class ClaudeProvider : IUsageProvider
     /// </summary>
     public static readonly TimeSpan EndpointInterval = TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// Only Lidget's own request has the banked resets. If the reset data is older than this, Lidget sends
+    /// its own request, although a saved response or a feed is current (plan decision D59).
+    /// </summary>
+    public static readonly TimeSpan ResetDataMaxAge = TimeSpan.FromHours(6);
+
     /// <summary>The wait after HTTP 429 when the response has no <c>Retry-After</c> header.</summary>
     public static readonly TimeSpan DefaultRateLimitWait = TimeSpan.FromMinutes(15);
 
@@ -31,6 +37,9 @@ public sealed class ClaudeProvider : IUsageProvider
 
     /// <summary>The file in the data folder that keeps the end of a rate-limit wait across restarts.</summary>
     public const string WaitFileName = "claude-usage-wait.json";
+
+    /// <summary>The file in the data folder that keeps the banked resets and their time across restarts.</summary>
+    public const string ResetsFileName = "claude-resets.json";
 
     private const string RateLimitedMessage = "Anthropic is limiting usage requests. Lidget will retry later.";
 
@@ -41,6 +50,12 @@ public sealed class ClaudeProvider : IUsageProvider
     private readonly IReadOnlyList<ClaudeLimitFeed> _feeds;
     private readonly ClaudeCodeUsageCache? _cache;
     private readonly string? _waitPath;
+    private readonly string? _resetsPath;
+    private readonly ClaudeResetClient? _resetClient;
+    private ResetSummary? _resets;
+    private DateTimeOffset? _resetsCheckedAt;
+    private DateTimeOffset? _lastRequestAt;
+    private bool _requestAfterRedemption;
     private ProviderSnapshot? _lastEndpoint;
     private ProviderSnapshot? _lastGoodEndpoint;
     private DateTimeOffset? _endpointRetryAt;
@@ -53,7 +68,9 @@ public sealed class ClaudeProvider : IUsageProvider
         ILogger<ClaudeProvider>? logger = null,
         IEnumerable<ClaudeLimitFeed>? feeds = null,
         ClaudeCodeUsageCache? cache = null,
-        string? waitPath = null)
+        string? waitPath = null,
+        string? resetsPath = null,
+        ClaudeResetClient? resetClient = null)
     {
         _credentials = credentials;
         _client = client;
@@ -62,7 +79,10 @@ public sealed class ClaudeProvider : IUsageProvider
         _feeds = feeds?.ToArray() ?? [];
         _cache = cache;
         _waitPath = waitPath;
+        _resetsPath = resetsPath;
+        _resetClient = resetClient;
         LoadWait();
+        LoadResets();
         foreach (var feed in _feeds)
         {
             feed.Source.ReadingsChanged += OnFeedReadings;
@@ -85,6 +105,8 @@ public sealed class ClaudeProvider : IUsageProvider
         if (requested)
         {
             _logger.LogDebug("Requesting Claude usage from the endpoint");
+            _lastRequestAt = now;
+            _requestAfterRedemption = false;
             endpoint = await ReadEndpointAsync(ct).ConfigureAwait(false);
             RecordEndpoint(endpoint, now);
         }
@@ -113,6 +135,12 @@ public sealed class ClaudeProvider : IUsageProvider
             return false;
         }
 
+        if (_requestAfterRedemption)
+        {
+            // A redemption changes the limits and the resets, and only the endpoint has the resets.
+            return true;
+        }
+
         DateTimeOffset? newest = _lastGoodEndpoint?.UpdatedAt;
         if (cached is not null && HasSessionAndWeekly(cached.Limits) && (newest is null || cached.FetchedAt > newest))
         {
@@ -127,8 +155,16 @@ public sealed class ClaudeProvider : IUsageProvider
         var maxAge = IsCurrent(readings, LimitKind.Session, now) && IsCurrent(readings, LimitKind.Weekly, now)
             ? EndpointMaxAge
             : EndpointInterval;
-        return now - newest >= maxAge;
+        return now - newest >= maxAge || ResetDataIsOld(now);
     }
+
+    /// <summary>
+    /// A saved response and the feeds have no banked resets. Lidget requests the endpoint for them at most
+    /// one time in <see cref="ResetDataMaxAge"/>, and not more often than <see cref="EndpointInterval"/>.
+    /// </summary>
+    private bool ResetDataIsOld(DateTimeOffset now) =>
+        (_resetsCheckedAt is not { } checkedAt || now - checkedAt >= ResetDataMaxAge)
+        && (_lastRequestAt is not { } last || now - last >= EndpointInterval);
 
     private static bool HasSessionAndWeekly(IReadOnlyList<LimitWindow> limits) =>
         limits.Any(l => l.Kind == LimitKind.Session) && limits.Any(l => l.Kind == LimitKind.Weekly);
@@ -194,6 +230,9 @@ public sealed class ClaudeProvider : IUsageProvider
         if (endpoint.Status == ProviderStatus.Ok)
         {
             _lastGoodEndpoint = endpoint;
+            _resets = endpoint.Resets;
+            _resetsCheckedAt = now;
+            SaveResets();
             if (_endpointRetryAt is not null)
             {
                 _endpointRetryAt = null;
@@ -295,9 +334,141 @@ public sealed class ClaudeProvider : IUsageProvider
         Push(Finish(Combine(Base(_lastEndpoint, now), readings, now)));
     }
 
-    /// <summary>Adds the plan name when the result comes from the feeds or from Claude Code.</summary>
-    private ProviderSnapshot Finish(ProviderSnapshot snapshot) =>
-        snapshot.PlanName is null && _plan is { } plan ? snapshot with { PlanName = plan } : snapshot;
+    /// <summary>
+    /// Adds the plan name when the result comes from the feeds or from Claude Code, and the last banked
+    /// resets, which only Lidget's own request has.
+    /// </summary>
+    private ProviderSnapshot Finish(ProviderSnapshot snapshot) => snapshot with
+    {
+        PlanName = snapshot.PlanName ?? _plan,
+        Resets = _resets,
+    };
+
+    /// <summary>Restores the banked resets that a previous run saved, so that a restart needs no request for them.</summary>
+    private void LoadResets()
+    {
+        if (_resetsPath is null || !File.Exists(_resetsPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var saved = JsonSerializer.Deserialize<SavedResets>(File.ReadAllText(_resetsPath), SettingsStore.JsonOptions);
+            if (saved is not null && saved.CheckedAt - _time.GetUtcNow() <= TimeSpan.FromMinutes(5))
+            {
+                _resets = saved.Summary;
+                _resetsCheckedAt = saved.CheckedAt;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+        {
+            _logger.LogWarning("Could not read the saved Claude resets: {Error}", ex.Message);
+        }
+    }
+
+    private void SaveResets()
+    {
+        if (_resetsPath is null || _resetsCheckedAt is not { } checkedAt)
+        {
+            return;
+        }
+
+        try
+        {
+            AtomicFile.WriteAllText(_resetsPath, JsonSerializer.Serialize(new SavedResets(checkedAt, _resets), SettingsStore.JsonOptions));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning("Could not save the Claude resets: {Error}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Redeems the grant with the ID <paramref name="resetId"/>. <paramref name="idempotencyKey"/> is the request ID
+    /// of the claim: the server spends one reset at most for one request ID.
+    /// </summary>
+    public async Task<RedeemOutcome> RedeemAsync(string resetId, string idempotencyKey, CancellationToken ct)
+    {
+        if (_resetClient is null || !ClaudeResetMapper.IsGrantId(resetId) || !ClaudeResetClient.IsRequestId(idempotencyKey))
+        {
+            return RedeemOutcome.Failed;
+        }
+
+        var credentials = await _credentials.GetCredentialsAsync(forceRefresh: false, ct).ConfigureAwait(false);
+        if (credentials.OAuth is null || _resetClient.ReadOrganizationId() is not { } organization)
+        {
+            return RedeemOutcome.NeedsLogin;
+        }
+
+        RedeemOutcome outcome;
+        try
+        {
+            var response = await _resetClient.SendAsync(credentials.OAuth.AccessToken, organization, resetId, idempotencyKey, ct).ConfigureAwait(false);
+            if (response.Status == HttpStatusCode.Unauthorized)
+            {
+                // The server rejected a token that looked valid. Refresh one time and send the same request ID again.
+                credentials = await _credentials.GetCredentialsAsync(forceRefresh: true, ct).ConfigureAwait(false);
+                if (credentials.OAuth is null)
+                {
+                    return RedeemOutcome.NeedsLogin;
+                }
+
+                response = await _resetClient.SendAsync(credentials.OAuth.AccessToken, organization, resetId, idempotencyKey, ct).ConfigureAwait(false);
+            }
+
+            if ((int)response.Status is < 200 or > 299)
+            {
+                _logger.LogWarning("Claude reset request failed (HTTP {Status})", (int)response.Status);
+            }
+
+            outcome = ClaudeResetClient.Outcome(response);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning("Claude reset request failed: {Error}", ex.HttpRequestError);
+            return RedeemOutcome.Failed;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Claude reset request timed out");
+            return RedeemOutcome.Unconfirmed;
+        }
+
+        if (outcome is RedeemOutcome.Reset or RedeemOutcome.AlreadyRedeemed or RedeemOutcome.NoReset)
+        {
+            NoteRedeemed(resetId, spent: outcome == RedeemOutcome.Reset);
+        }
+
+        return outcome;
+    }
+
+    /// <summary>
+    /// Shows the new count at once after a redemption, and asks for one usage request, because the limits and
+    /// the resets changed. The request still waits for a <c>Retry-After</c> time.
+    /// </summary>
+    private void NoteRedeemed(string resetId, bool spent)
+    {
+        _requestAfterRedemption = true;
+        if (!spent || _resets is not { Resets: { } resets } summary)
+        {
+            return;
+        }
+
+        var updated = resets
+            .Select(r => r.Id == resetId ? r with { Count = r.Count - 1 } : r)
+            .Where(r => r.Count > 0)
+            .ToArray();
+        var hasNext = updated.Any(r => r.CanRedeemNow);
+        _resets = summary with
+        {
+            AvailableCount = Math.Max(0, summary.AvailableCount - 1),
+            Resets = updated,
+            NextResetId = hasNext ? summary.NextResetId : null,
+            ObservedAt = _time.GetUtcNow(),
+        };
+        SaveResets();
+    }
 
     /// <summary>
     /// Combines endpoint and feed readings: for each limit, the newer reading wins. If the endpoint failed,
@@ -395,10 +566,12 @@ public sealed class ClaudeProvider : IUsageProvider
         }
 
         IReadOnlyList<LimitWindow> limits;
+        ResetSummary? resets;
         try
         {
             using var document = JsonDocument.Parse(response.Body);
             limits = ClaudeUsageMapper.Map(document.RootElement, now);
+            resets = ClaudeResetMapper.Map(document.RootElement, now);
         }
         catch (JsonException)
         {
@@ -415,6 +588,7 @@ public sealed class ClaudeProvider : IUsageProvider
         return new ProviderSnapshot(Id, ProviderStatus.Ok, limits, null, now)
         {
             PlanName = ClaudeUsageMapper.FormatPlan(oauth.SubscriptionType, oauth.RateLimitTier),
+            Resets = resets,
         };
     }
 
@@ -432,6 +606,9 @@ public sealed class ClaudeProvider : IUsageProvider
 
     /// <summary>Publishes a reading that arrived between refreshes.</summary>
     internal void Push(ProviderSnapshot snapshot) => SnapshotPushed?.Invoke(this, snapshot);
+
+    /// <summary>The banked resets and the time of the response that had them.</summary>
+    private sealed record SavedResets(DateTimeOffset CheckedAt, ResetSummary? Summary);
 
     public ValueTask DisposeAsync()
     {

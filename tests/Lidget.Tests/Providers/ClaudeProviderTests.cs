@@ -39,8 +39,15 @@ public class ClaudeProviderTests : IDisposable
             _time,
             feeds: feed is null ? null : [new ClaudeLimitFeed(feed, () => true)],
             cache: withClaudeCodeCopy ? new ClaudeCodeUsageCache(_dir.File(".claude.json"), _time) : null,
-            waitPath: saveWait ? WaitPath : null);
+            waitPath: saveWait ? WaitPath : null,
+            resetsPath: ResetsPath);
     }
+
+    private string ResetsPath => _dir.File(ClaudeProvider.ResetsFileName);
+
+    /// <summary>Saves reset data from an earlier request of Lidget, so that the reset rule (D59) asks for no request.</summary>
+    private void WriteSavedResets(DateTimeOffset checkedAt) =>
+        File.WriteAllText(ResetsPath, new JsonObject { ["checkedAt"] = checkedAt, ["summary"] = null }.ToJsonString());
 
     private string WaitPath => _dir.File(ClaudeProvider.WaitFileName);
 
@@ -309,6 +316,7 @@ public class ClaudeProviderTests : IDisposable
     {
         WriteCredentials();
         WriteClaudeCodeCopy(Now.AddMinutes(-2), session: 37, weekly: 3);
+        WriteSavedResets(Now.AddHours(-1));
         var handler = new FakeHttpHandler((_, _) => throw new InvalidOperationException("No request expected."));
 
         var snapshot = await CreateProvider(handler, withClaudeCodeCopy: true).RefreshAsync(CancellationToken.None);
