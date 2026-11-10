@@ -7,6 +7,16 @@ public enum WidgetMetric
     Weekly,
 }
 
+/// <summary>The form of the taskbar widget (plan decision D66).</summary>
+public enum WidgetStyle
+{
+    /// <summary>A logo, a bar, and a percentage for each provider.</summary>
+    Bars,
+
+    /// <summary>A logo in two rings for each provider: the weekly limit outside, and the session limit inside.</summary>
+    Rings,
+}
+
 /// <summary>How the widget, the flyout, and notifications show a limit.</summary>
 public enum UsageDisplay
 {
@@ -30,6 +40,11 @@ public sealed record LidgetSettings
 
     public WidgetMetric WidgetMetric { get; init; } = WidgetMetric.Tightest;
 
+    public WidgetStyle WidgetStyle { get; init; } = WidgetStyle.Bars;
+
+    /// <summary>Whether the taskbar widget marks a provider that has a banked reset.</summary>
+    public bool ShowResetsInTaskbar { get; init; } = true;
+
     public UsageDisplay UsageDisplay { get; init; } = UsageDisplay.Remaining;
 
     /// <summary>Whether the taskbar widget marks the even-pace point on its bar. The flyout always shows the pace.</summary>
@@ -39,6 +54,9 @@ public sealed record LidgetSettings
     public IReadOnlyList<int> NotificationThresholds { get; init; } = [80, 95];
 
     public bool NotifyOnReset { get; init; }
+
+    /// <summary>Whether Lidget warns 24 hours and 2 hours before a banked reset expires.</summary>
+    public bool WarnBeforeResetExpires { get; init; } = true;
 
     public bool StartWithWindows { get; init; } = true;
 
