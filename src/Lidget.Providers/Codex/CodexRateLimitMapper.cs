@@ -87,6 +87,72 @@ public static class CodexRateLimitMapper
         return result;
     }
 
+    /// <summary>
+    /// Maps <c>rateLimitResetCredits</c> of an <c>account/rateLimits/read</c> result to banked resets (plan
+    /// decision D60). Returns null when the result has no reset data, for example from an older Codex version.
+    /// A background read gives only the count, and then <see cref="ResetSummary.Resets"/> is null.
+    /// </summary>
+    public static ResetSummary? MapResets(JsonElement result, DateTimeOffset now)
+    {
+        if (result.ValueKind != JsonValueKind.Object
+            || !result.TryGetProperty("rateLimitResetCredits", out var block) || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("availableCount", out var available) || available.ValueKind != JsonValueKind.Number
+            || !available.TryGetInt64(out var count))
+        {
+            return null;
+        }
+
+        var availableCount = (int)Math.Clamp(count, 0, int.MaxValue);
+        if (!block.TryGetProperty("credits", out var credits) || credits.ValueKind != JsonValueKind.Array)
+        {
+            // Without a reset, the list is known: it is empty.
+            return new ResetSummary(availableCount, availableCount == 0 ? [] : null, now);
+        }
+
+        var resets = new List<BankedReset>();
+        foreach (var credit in credits.EnumerateArray())
+        {
+            if (credit.ValueKind != JsonValueKind.Object
+                || ReadText(credit, "id") is not { Length: > 0 } id
+                || ReadText(credit, "status") != "available")
+            {
+                continue;
+            }
+
+            var expiresAt = ReadSeconds(credit, "expiresAt");
+            if (expiresAt is { } expires && expires <= now)
+            {
+                continue;
+            }
+
+            resets.Add(new BankedReset(id, ReadText(credit, "title"), 1, ReadSeconds(credit, "grantedAt"), expiresAt));
+        }
+
+        return new ResetSummary(availableCount, resets, now)
+        {
+            NextResetId = resets.Where(r => r.ExpiresAt is not null).MinBy(r => r.ExpiresAt)?.Id ?? resets.FirstOrDefault()?.Id,
+        };
+    }
+
+    /// <summary>Maps the <c>outcome</c> of an <c>account/rateLimitResetCredit/consume</c> result.</summary>
+    public static RedeemOutcome MapRedeemOutcome(JsonElement result) =>
+        (result.ValueKind == JsonValueKind.Object ? ReadText(result, "outcome") : null) switch
+        {
+            "reset" => RedeemOutcome.Reset,
+            "nothingToReset" => RedeemOutcome.NothingToReset,
+            "noCredit" => RedeemOutcome.NoReset,
+            "alreadyRedeemed" => RedeemOutcome.AlreadyRedeemed,
+            _ => RedeemOutcome.Failed,
+        };
+
+    private static string? ReadText(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    private static DateTimeOffset? ReadSeconds(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var seconds)
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+            : null;
+
     public static string? FormatPlan(JsonElement snapshot) =>
         snapshot.ValueKind == JsonValueKind.Object && snapshot.TryGetProperty("planType", out var plan) && plan.ValueKind == JsonValueKind.String
             ? plan.GetString() switch
