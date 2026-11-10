@@ -65,6 +65,8 @@ Do not change the words of this text:
 | Data folder | `%LOCALAPPDATA%\LidgetData`. It keeps settings, history, caches, and logs. |
 | Install folder | `%LOCALAPPDATA%\Lidget`. Velopack owns it and deletes it at uninstall. |
 | Snapshot | The result of one provider refresh: the status, the limits, and the time. |
+| Banked reset | A reset that a provider gives to an account. It resets the session limit, the weekly limit, or both, and it has an expiry time. |
+| Redeem | To use a banked reset. The provider then resets the limits that the reset covers. |
 
 ## Status words
 

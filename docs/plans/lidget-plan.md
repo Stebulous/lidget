@@ -1,6 +1,6 @@
 # Lidget — Development plan
 
-> Status: Released (0.2.2, 2026-10-31) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
+> Status: Released (0.2.2, 2026-10-31) · M5 planned (2026-11-10) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
@@ -30,6 +30,9 @@ The design takes ideas from two projects:
   - Success looks like: a toast notification appears when a limit crosses 80% and 95%, one time for each limit window.
 - Goal: a user can install and update Lidget from GitHub Releases.
   - Success looks like: the Velopack installer installs the app, and a newer release updates it automatically.
+- Goal: a user does not lose a banked reset by accident (M5).
+  - Success looks like: the flyout shows each banked reset with its expiry time, and a toast warns before the expiry.
+    The user can redeem a reset in Lidget.
 
 ## Non-goals
 
@@ -47,6 +50,7 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 - Code signing.
 - Localization. Lidget is English only.
 - A separate in-app OAuth login. Lidget uses the existing CLI logins.
+- Automatic redemption of a banked reset. Lidget redeems a reset only after the user confirms (D61).
 - Code copied from FluentFlyout. Its license is GPL-3.0, and Lidget is MIT.
 
 ## Decisions
@@ -109,6 +113,16 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 | D54 | Approach | Claude data: after HTTP 429 or another temporary endpoint failure, Lidget keeps the newest response from Lidget or from Claude Code, at any age, until each limit resets. The status stays `Ok` for 1 hour. After that, the status is `Stale`, with the error message and the real age. A refused login does not keep the response of Lidget. (Refines D46.) | A 429 removed the last good response. When the saved copy passed 1 hour, the flyout fell back to a feed reading that was 4.5 hours old. | user |
 | D55 | Approach | Claude usage endpoint: without current feed readings, Lidget requests the endpoint at most one time in 30 minutes, not 15. (Refines D46.) | Requests every 15 minutes during idle time ended in HTTP 429 after about 2.25 hours on two nights. Anthropic does not publish the limit, so 30 minutes is a first value to measure. | user |
 | D56 | Scope | Later list, sorted on 2026-11-05. Next: usage trends and forecasts, and banked limit resets. Parked: code signing, winget, `win-arm64` builds, more providers, more accounts, and a CLI or local HTTP API. Dropped: MSIX and the Microsoft Store, and a direct Codex endpoint fallback. | Signing costs too much for one open-source project now, and winget waits for signing. The Velopack installer and updates are sufficient without the Store. A direct Codex fallback must read the Codex login, and Codex owns its login (D12). Each new provider needs an account for the live checks. | user |
+| D57 | Scope | M5 adds banked resets for Claude and Codex. Lidget shows them, warns before they expire, redeems one after the user confirms, and keeps a history. The tray icon, secondary monitors, and the vertical taskbar are parked. (Refines D56.) | A reset that expires without use is lost. Each provider shows its resets only on its own page. | user |
+| D58 | Approach | Claude banked resets: Lidget adds `cedar_ember=1` to its usage endpoint request, and reads the `cedar_ember` block of the response. It sends no separate request for resets. A response without the block means that Lidget has no reset data. It is not an error. | T3 Code (MIT) reads the block from this endpoint. The saved response and the feeds do not have the block. One request for limits and resets keeps the load on the endpoint the same. | user |
+| D59 | Approach | Claude reset data age: Lidget keeps the last reset data with its own time. If the data is older than 6 hours, Lidget sends its own usage request, although a saved response or a feed is current. The `Retry-After` wait and the 30-minute minimum (D55) still apply. (Refines D48.) | While Claude Code saves responses, Lidget sends no request (D48), and the reset data does not change. The rule adds a maximum of 4 requests each day. | agent default, to confirm |
+| D60 | Approach | Codex banked resets: each limit read keeps `excludeResetCreditDetails`, and reads `rateLimitResetCredits.availableCount`. Lidget reads the details when the count changes, when the flyout opens and the details are older than 10 minutes, and one time in 6 hours. | The Codex schema says that a background read must skip the detail lookup. Expiry times change only when the list changes. | agent default |
+| D61 | Approach | Redemption: Lidget redeems a reset only after the user confirms in a dialog. Codex: `account/rateLimitResetCredit/consume` with the credit ID. Claude: `POST /api/organizations/{organization}/reset_rate_limits` with the grant ID. Lidget saves an idempotency key in the data folder before the request, and uses the same key until the provider gives a final result. Lidget redeems one reset at a time for each provider. | The user cannot get a redeemed reset back. A lost response must not spend a second reset. T3 Code and reset-reaper use the same key rule. | user |
+| D62 | Experience | Confirmation dialog: it shows the reset title, the expiry time, and the used share of the session and weekly limits. **Cancel** is the default button. If the provider answers that no limit can be reset, Lidget shows that message, and the reset stays available. | The user sees when a redemption gives little, for example at 4% used. | agent default |
+| D63 | Experience | Flyout: each provider card has a **Resets** row with the count and the next expiry time. The row opens a list of the available resets, each with a **Use reset** button, and a **History** list. Lidget hides the row when the provider gives no reset data. | The Codex usage page has the same structure. | agent default |
+| D64 | Experience | Expiry warnings: one toast 24 hours before a reset expires, and one toast 2 hours before. A click opens the flyout. The **Warn before a reset expires** setting is on by default. The flyout shows a reset in amber during its last 24 hours. | The first toast gives time to plan. The second toast is the last warning. | agent default |
+| D65 | Approach | Reset history: `history.db` gets a table of reset events. The events are: first seen, redeemed in Lidget, used in another app, and expired. A reset that goes away before its expiry time counts as used in another app. | The providers list only the available resets. Lidget must record the changes to show a history. | user |
+| D66 | Experience | Ring widget style: the **Widget style** setting selects **Bars** (default) or **Rings**. The Rings style shows each provider logo in two concentric rings: the outer ring for the weekly limit, and the inner ring for the session limit. In the two styles, a dot on the logo shows that a banked reset is available. The **Show resets in the taskbar** setting controls the dot, and is on by default. | The user asked for indicators like the OpenBot indicators. Rings use less taskbar width, and they give the dot a clear position. | user |
 
 ## Constraints
 
@@ -319,10 +333,65 @@ If `Shell_TrayWnd` is absent for 30 seconds, the taskbar is not at the bottom, o
 The pill is a topmost, draggable, borderless window with the same widget content.
 `TaskbarHost` shows one toast that explains the fallback.
 
+### Banked resets (D57 to D66)
+
+A banked reset is provider-neutral in `Lidget.Core`. Each provider maps its own data to this model.
+
+```csharp
+public sealed record BankedReset(
+    string Id,                 // Codex credit ID or Claude grant ID. Lidget does not log it.
+    string? Title,             // provider text, for example "Full reset (Weekly + 5 hr)"
+    int Count,                 // 1 for Codex, `resets_left` for Claude
+    DateTimeOffset? GrantedAt,
+    DateTimeOffset? ExpiresAt,
+    bool CanRedeemNow);
+
+public sealed record ResetSummary(
+    int AvailableCount,
+    IReadOnlyList<BankedReset>? Resets,  // null: only the count is known
+    string? NextResetId,                 // the reset that the provider redeems first
+    DateTimeOffset ObservedAt);
+
+public enum RedeemOutcome
+{
+    Reset, NothingToReset, NoReset, AlreadyRedeemed,
+    CoolingDown, RateLimited, NeedsLogin, Unconfirmed, Failed
+}
+
+public interface IResetRedeemer
+{
+    Task<RedeemOutcome> RedeemAsync(string resetId, CancellationToken ct);
+}
+```
+
+`ProviderSnapshot` gets an optional `ResetSummary`. A provider that implements `IResetRedeemer` can redeem.
+
+| Item | Claude | Codex |
+| --- | --- | --- |
+| Read | `cedar_ember` block of the usage response (D58) | `rateLimitResetCredits` of `account/rateLimits/read` (D60) |
+| Fields | `eligible`, `grants` (`id`, `resets_left`, `ends_at`, `paused`, `usable_now`), `next_grant_id` | `availableCount`, `credits` (`id`, `title`, `description`, `status`, `grantedAt`, `expiresAt`) |
+| Redeem | `POST /api/organizations/{organization}/reset_rate_limits` with `program`, `grant_id`, `request_id` | `account/rateLimitResetCredit/consume` with `creditId`, `idempotencyKey` |
+| Results | `reset`, `already_used`, `not_limited`, `cooldown`, `ineligible`, `unavailable` | `reset`, `nothingToReset`, `noCredit`, `alreadyRedeemed` |
+| Which reset | The grant in `next_grant_id` only | The reset that the user selects |
+
+Data flow:
+
+1. Each provider puts its `ResetSummary` in the snapshot. Claude keeps the last summary when a refresh uses the saved response or a feed.
+2. `ResetTracker` compares each summary with the stored resets, and writes reset events to `history.db` (D65).
+3. `ResetExpiryEvaluator` gives the expiry warnings (D64). It uses the same saved state as `ThresholdEvaluator`, so a restart does not repeat a toast.
+4. The flyout shows the **Resets** row from the snapshot and the history from the store (D63).
+5. For a redemption, the redeemer saves the idempotency key, sends the request, and saves the result (D61).
+   A timeout or an `unavailable` result keeps the key. The next try uses the same key.
+6. After a final result, Lidget refreshes the provider, so that the limits and the reset list are current.
+
+The redemption service has no user interface code.
+A later automatic redemption rule can use it without a change (see [Later](#later)).
+
 ## Work breakdown
 
 Milestones M0 to M4 built the first release, 0.1.0. All their tasks are complete.
 Each later change has a decision in [Decisions](#decisions) and an entry in the [Evidence log](#evidence-log).
+M5 is planned work for the release 0.3.0.
 
 ### M0 — Bootstrap and spikes
 
@@ -598,6 +667,127 @@ The release stays local until the user approves publication.
   - Execution skill: verify-and-stop.
   - Parallel-safe: no.
 
+### M5 — Banked resets
+
+Outcome: for Claude and Codex, the user sees the banked resets, gets a warning before one expires, and can redeem one in Lidget.
+The release is 0.3.0. Update the guide that owns each behavior in the same task.
+
+- [ ] **T5.1 Spike: Claude reset block**
+  - Objective: prove the `cedar_ember` block on the maintainer's account (D58).
+  - Touches: `tests/Lidget.Tests/fixtures/claude/`, plan evidence log.
+  - Depends on: none.
+  - Steps:
+    1. Read `apps/server/src/provider/claudeResetCredits.ts` in T3 Code.
+    2. Add `cedar_ember=1` to the usage request in a Debug build. Use `LIDGET_DATA_DIR` with a copy of the data folder.
+    3. Let the Debug build send its usual request. Do not send an extra request.
+    4. Save the response as a fixture. Replace each grant ID and each account value.
+    5. Save a Codex detail response as a fixture in the same way.
+  - Acceptance:
+    - The evidence log has the field list, and the count agrees with the Claude usage page.
+    - The log shows one usage request for the run.
+    - The limit values of the response agree with a response without the parameter.
+  - Execution skill: investigate-first.
+  - Parallel-safe: yes, with T5.2.
+
+- [ ] **T5.2 Reset model, tracker, and history**
+  - Objective: add the model in [Banked resets](#banked-resets-d57-to-d66), and record reset events (D65).
+  - Touches: `src/Lidget.Core/Models/ProviderSnapshot.cs`, `src/Lidget.Core/Resets/` (new), `src/Lidget.Core/Storage/HistoryStore.cs`, tests.
+  - Depends on: none.
+  - Acceptance:
+    - Tests prove the schema migration of an existing `history.db`.
+    - Tests prove each event: first seen, redeemed in Lidget, used in another app, and expired.
+    - Tests prove that a summary with only a count, and a refresh without reset data, write no false event.
+    - Tests prove that a Claude grant with a lower `resets_left` records one use for each step.
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.1.
+
+- [ ] **T5.3 Claude reset source**
+  - Objective: read Claude banked resets with the usage request (D58, D59).
+  - Touches: `src/Lidget.Providers/Claude/ClaudeEndpoints.cs`, `ClaudeUsageClient.cs`, `ClaudeResetMapper.cs` (new), `ClaudeProvider.cs`, `THIRD-PARTY-NOTICES.md`, `docs/data-sources.md`, tests.
+  - Depends on: T5.1, T5.2.
+  - Acceptance:
+    - Tests prove the mapper with the fixture: paused grants, grants that are not usable, expired grants, and a missing block.
+    - Tests prove that a refresh from the saved response or a feed keeps the last reset summary.
+    - Tests prove the 6-hour rule with a fake clock, and that the rule obeys the `Retry-After` wait and the 30-minute minimum.
+    - `THIRD-PARTY-NOTICES.md` has a T3 Code entry.
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.4.
+
+- [ ] **T5.4 Codex reset source**
+  - Objective: read Codex banked resets from the app-server (D60).
+  - Touches: `src/Lidget.Providers/Codex/CodexProvider.cs`, `CodexRateLimitMapper.cs`, `docs/data-sources.md`, tests.
+  - Depends on: T5.2.
+  - Acceptance:
+    - Tests prove the count from a background read, and the detail read for each rule in D60.
+    - Tests prove that a credit with the status `redeeming`, `redeemed`, or `unknown` is not available.
+    - A response without `rateLimitResetCredits`, from an older Codex version, gives no reset data and no error.
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.3.
+
+- [ ] **T5.5 Redemption**
+  - Objective: redeem one reset safely for each provider (D61).
+  - Touches: `src/Lidget.Core/Resets/`, `src/Lidget.Providers/Claude/ClaudeResetClient.cs` (new), `src/Lidget.Providers/Codex/CodexProvider.cs`, `AGENTS.md`, `docs/data-sources.md`, tests.
+  - Depends on: T5.3, T5.4.
+  - Acceptance:
+    - Tests prove each result in the table in [Banked resets](#banked-resets-d57-to-d66), with a fake HTTP handler and a fake transport.
+    - Tests prove that a timeout keeps the key, that a restart reads the key again, and that a final result deletes it.
+    - Tests prove that a second redemption for the same provider waits for the first.
+    - The Claude request obeys HTTP 429, and shows a refused login as `NeedsLogin`.
+    - The log has the result of each redemption. It has no reset ID, no organization ID, and no token.
+    - `AGENTS.md` has the rule that Lidget redeems a reset only after the user confirms.
+    - No test redeems a real reset.
+  - Execution skill: lean-build.
+  - Parallel-safe: no.
+
+- [ ] **T5.6 Flyout: resets, redemption, and history**
+  - Objective: show the **Resets** row, the confirmation dialog, and the history (D62, D63).
+  - Touches: `src/Lidget.App/Views/FlyoutWindow.xaml`, `Views/RedeemDialog.xaml` (new), `ViewModels/ProviderViewModel.cs`, `ViewModels/ResetsViewModel.cs` (new), `docs/user-guide.md`.
+  - Depends on: T5.2, T5.5.
+  - Acceptance:
+    - The row shows the count and the next expiry time, and it is hidden without reset data.
+    - The dialog shows the title, the expiry time, and the session and weekly used share. **Cancel** is the default button.
+    - Each redemption result shows a message in plain words.
+    - The history list shows each event with its time.
+    - The Debug build shows the row for the two providers at 100% and 150% scale, in light and dark themes.
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.7.
+
+- [ ] **T5.7 Expiry warnings**
+  - Objective: warn before a reset expires (D64).
+  - Touches: `src/Lidget.Core/Notifications/ResetExpiryEvaluator.cs` (new), `src/Lidget.Core/Models/LidgetSettings.cs`, `src/Lidget.App/Services/ToastService.cs`, `Views/SettingsWindow.xaml`, `docs/user-guide.md`, tests.
+  - Depends on: T5.2.
+  - Acceptance:
+    - Tests prove one toast at 24 hours and one at 2 hours for each reset, with a fake clock.
+    - Tests prove no repeat after a restart, and no toast for a reset that is redeemed or first seen after its warning time.
+    - The setting stops the toasts.
+    - A manual check shows a real toast, and a click opens the flyout.
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.6.
+
+- [ ] **T5.8 Ring widget style and reset dot**
+  - Objective: add the Rings style and the dot for available resets (D66).
+  - Touches: `src/Lidget.App/Views/WidgetView.xaml`, `Shell/FallbackPillWindow.cs`, `ViewModels/ProviderViewModel.cs`, `src/Lidget.Core/Models/LidgetSettings.cs`, `Views/SettingsWindow.xaml`, `docs/user-guide.md`.
+  - Depends on: T5.2.
+  - Acceptance:
+    - **Widget style** changes the widget at once, and the Bars style is the same as in 0.2.2.
+    - The rings use the severity colors (D20) and the display mode (D44). A status that is not `Ok` shows gray rings.
+    - The dot shows in the two styles, and **Show resets in the taskbar** removes it.
+    - The widget width changes with the style, and the taskbar space check (D43) uses the new width.
+    - The Debug build passes the display checks at 100%, 150%, and 200% scale, and the idle CPU check (D53).
+  - Execution skill: lean-build.
+  - Parallel-safe: yes, with T5.6 and T5.7.
+
+- [ ] **T5.9 Release candidate QA**
+  - Objective: prove M5 on an installed build.
+  - Touches: `docs/qa-checklist.md`, plan evidence log.
+  - Depends on: T5.1 to T5.8.
+  - Acceptance:
+    - `docs/qa-checklist.md` has rows for the resets, the warnings, the history, and the Rings style, and each row passes.
+    - One live redemption for each provider passes. Each one needs the approval of the maintainer at that time, because it spends a real reset.
+    - Do not publish a release or push a tag until the user approves.
+  - Execution skill: verify-and-stop.
+  - Parallel-safe: no.
+
 ## Verification strategy
 
 - **Unit tests** (`dotnet test`) cover these items with recorded fixtures and fake clocks:
@@ -610,6 +800,7 @@ The release stays local until the user approves publication.
   - log scanners
   - pricing
 - No unit test calls a live endpoint or the real CLI.
+- No test redeems a real banked reset. T5.9 has one live redemption for each provider, with the approval of the maintainer.
 - **Manual live checks** prove each provider against the real logins of the developer (T0.2, T0.3, T1.5, T1.6).
 - **Manual shell QA** uses `docs/qa-checklist.md`:
   - Explorer restart
@@ -636,6 +827,9 @@ The release stays local until the user approves publication.
 | Session log formats change and cost estimates become wrong | Medium / low | Tolerant parsing, an "estimate" label, and a list of unpriced models under the cost tiles. |
 | A rename after the first public release breaks automatic updates, because the Velopack package ID changes | Medium / high | Choose the final name before the first public release (D33). |
 | Explorer sends messages to the embedded widget window and waits while the Lidget UI thread is busy, so the taskbar freezes | Low / high | Keep work off the UI thread. FluentFlyout reports freezes with some shell mods and filters such messages. If QA sees a freeze, add a message filter to `TaskbarWidgetWindow` (do not copy FluentFlyout code). |
+| Anthropic renames or removes the `cedar_ember` block or the reset endpoint | Medium / medium | A missing block hides the **Resets** row for Claude (D58). All the code is in `ClaudeResetMapper` and `ClaudeResetClient`. |
+| A lost response during a redemption spends a second reset | Low / high | The saved idempotency key (D61), and tests for a timeout and a restart. |
+| Old reset data offers a reset that another app used | Medium / low | The provider answers `already_used` or `noCredit`. Lidget shows the message and refreshes. |
 
 ## Assumptions to confirm
 
@@ -645,14 +839,20 @@ The release stays local until the user approves publication.
 - **Codex app-server.** The plan assumes `account/rateLimits/read` gives the 5-hour and weekly windows. Confirm in T0.3, before T1.5.
 - **Toast library.** `Microsoft.Toolkit.Uwp.Notifications` works in the Debug build and in a Velopack install (T3.4 and T4.1 evidence).
 
+- **Claude reset block.** The plan assumes the fields in [Banked resets](#banked-resets-d57-to-d66), from the T3 Code source. Confirm in T5.1, before T5.3.
+- **Claude reset data age.** D59 adds a maximum of 4 usage requests each day. The maintainer must confirm it before T5.3, because it changes when Lidget requests the endpoint.
+- **Claude grant order.** The plan assumes that only the grant in `next_grant_id` can be redeemed, as in T3 Code. Lidget shows **Use reset** only for that grant.
+- **Reset dot.** D66 turns the dot on by default. The maintainer can change the default before T5.8.
+
 ## Later
 
-D56 sorts these candidates. Record a new decision before you start one.
+D56 and D57 sort these candidates. Record a new decision before you start one.
 
 Next:
 
 - Usage trends and forecasts from history across limit windows. D50 gives the run-out time in the current window only.
-- Banked limit resets: show the resets that a provider gives the user, and their expiry times.
+- Automatic redemption of a reset shortly before it expires, as [reset-reaper](https://github.com/Stebulous/reset-reaper) does for Codex.
+  It is an optional feature, and it needs its own plan. Lidget does not run while the computer is off or asleep.
 
 Parked:
 
@@ -662,9 +862,6 @@ Parked:
 - More providers: Cursor, GitHub Copilot, Gemini or Antigravity, OpenRouter, Z.ai. Each one needs an account for the live checks.
 - Account switching and multiple accounts.
 - A CLI and a local HTTP API for limit data, like OpenUsage.
-
-Not sorted:
-
 - Widgets on secondary monitors and support for a vertical taskbar.
 - An optional tray icon.
 
@@ -1042,3 +1239,25 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - Open gates:
   - The nightly count of 429 lines (D55) continues. Two nights with no 429 lines do not yet prove that 30 minutes is enough.
   - The notification checks and the one-week check of the Claude Code login.
+
+### 2026-11-10 — Banked reset sources (D57 to D66, no code change)
+
+- Codex, CLI `0.163.0`: `codex app-server generate-json-schema` gives the reset fields and the method `account/rateLimitResetCredit/consume`.
+  - `GetAccountRateLimitsResponse` has `rateLimitResetCredits`, with `availableCount` and `credits`.
+  - The parameter `excludeResetCreditDetails` skips the detail lookup "for background usage polls". The response still has the count.
+  - The consume results are `reset`, `nothingToReset`, `noCredit`, and `alreadyRedeemed`.
+- Codex live read on 2026-11-05, through a temporary app-server that stopped after the read:
+  - With details: 3 credits with the title "Full reset (Weekly + 5 hr)", the status `available`, and `grantedAt` and `expiresAt` times.
+  - Each credit expires 30 days after its grant. The 3 expiry times agreed with the Codex usage page to the minute.
+  - With `excludeResetCreditDetails`: `availableCount` 3, and `credits` `null`.
+- Claude, from the T3 Code source (MIT, revision `e4d86abc`, `apps/server/src/provider/claudeResetCredits.ts`):
+  - Read: `GET /api/oauth/usage?cedar_ember=1&skip_spend=1`, and the `cedar_ember` block of the response.
+  - Redeem: `POST /api/organizations/{organization}/reset_rate_limits` with `program: cedar_ember`, `grant_id`, and `request_id`.
+  - T3 Code reads the organization from `oauthAccount.organizationUuid` in `~/.claude.json`.
+  - T3 Code sends a separate usage request for the resets. Lidget does not (D58).
+- Other Claude sources have no reset data. The saved response has a `cedar_ember` key with the value `null`.
+  The Claude Code program has no text for reset grants.
+- The T3 Code limits page showed 4 Claude resets and 2 Codex resets on the maintainer's account on 2026-11-10.
+- [reset-reaper](https://github.com/Stebulous/reset-reaper) redeemed a Codex reset 30 minutes before its expiry on 2026-10-29, with the same app-server methods.
+- Not done: no request to the Claude usage endpoint, and no redemption. T5.1 gets the Claude fixture.
+- Open gates: the maintainer's answer on D59 and on the reset dot default.
