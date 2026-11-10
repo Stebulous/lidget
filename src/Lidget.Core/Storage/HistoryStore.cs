@@ -17,7 +17,7 @@ public sealed record HistoryPoint(
 /// Keeps limit history in SQLite (plan decision D26). Each limit reading is stored once,
 /// keyed by provider, limit, and observation time, so republished snapshots add no rows.
 /// </summary>
-public sealed class HistoryStore : IDisposable
+public sealed partial class HistoryStore : IDisposable
 {
     // Each entry migrates the schema from version (index) to version (index + 1).
     private static readonly string[] Migrations =
@@ -35,6 +35,7 @@ public sealed class HistoryStore : IDisposable
         ) WITHOUT ROWID;
         CREATE INDEX ix_limit_samples_observed_at ON limit_samples (observed_at);
         """,
+        ResetsMigration,
     ];
 
     private readonly SqliteConnection _connection;
@@ -152,13 +153,13 @@ public sealed class HistoryStore : IDisposable
     public IReadOnlyList<HistoryPoint> QueryLast(TimeSpan range, DateTimeOffset now, string? providerId = null) =>
         Query(now - range, now + TimeSpan.FromMilliseconds(1), providerId);
 
-    /// <summary>Deletes readings older than <paramref name="retentionDays"/>. Returns the number of deleted rows.</summary>
+    /// <summary>Deletes readings and reset events older than <paramref name="retentionDays"/>. Returns the number of deleted rows.</summary>
     public int Purge(int retentionDays, DateTimeOffset now)
     {
         lock (_gate)
         {
             using var command = _connection.CreateCommand();
-            command.CommandText = "DELETE FROM limit_samples WHERE observed_at < $cutoff;";
+            command.CommandText = "DELETE FROM limit_samples WHERE observed_at < $cutoff; DELETE FROM reset_events WHERE occurred_at < $cutoff;";
             command.Parameters.AddWithValue("$cutoff", (now - TimeSpan.FromDays(retentionDays)).ToUnixTimeMilliseconds());
             return command.ExecuteNonQuery();
         }

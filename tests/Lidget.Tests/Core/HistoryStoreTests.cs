@@ -23,12 +23,12 @@ public class HistoryStoreTests
 
         using (var store = new HistoryStore(path))
         {
-            Assert.Equal(1, store.SchemaVersion);
+            Assert.Equal(2, store.SchemaVersion);
             store.Record(Snapshot(Now, 10, 20));
         }
 
         using var reopened = new HistoryStore(path);
-        Assert.Equal(1, reopened.SchemaVersion);
+        Assert.Equal(2, reopened.SchemaVersion);
         Assert.Equal(2, reopened.QueryLast(TimeSpan.FromDays(1), Now).Count);
     }
 

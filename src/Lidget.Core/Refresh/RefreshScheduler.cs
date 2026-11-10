@@ -159,6 +159,7 @@ public sealed class RefreshScheduler : IAsyncDisposable
                 {
                     Limits = previous.Limits,
                     PlanName = snapshot.PlanName ?? previous.PlanName,
+                    Resets = snapshot.Resets ?? previous.Resets,
                     UpdatedAt = previous.UpdatedAt,
                 };
             }
