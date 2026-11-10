@@ -77,14 +77,16 @@ public partial class FlyoutWindow : FluentWindow
         var monitor = MonitorInfo.FromPoint(anchor.CenterX, anchor.CenterY);
         var scale = monitor.Scale;
 
-        Root.Measure(new Size(Width - Root.Margin.Left - Root.Margin.Right, double.PositiveInfinity));
-        var height = Root.DesiredSize.Height + Root.Margin.Top + Root.Margin.Bottom;
-
         _workLeft = monitor.WorkArea.Left / scale;
         _workRight = monitor.WorkArea.Right / scale;
         _anchorCenterX = anchor.CenterX / scale;
         // The floating pill sits inside the work area, so open above it, not over it.
         _anchorBottom = (Math.Min(monitor.WorkArea.Bottom, anchor.Top) / scale) - ScreenMargin;
+
+        // A long flyout, for example with open Resets rows, stops below the top of the screen. The providers then scroll.
+        MaxHeight = Math.Max(200, _anchorBottom - (monitor.WorkArea.Top / scale) - ScreenMargin);
+        Root.Measure(new Size(Width - Root.Margin.Left - Root.Margin.Right, double.PositiveInfinity));
+        var height = Math.Min(MaxHeight, Root.DesiredSize.Height + Root.Margin.Top + Root.Margin.Bottom);
         Left = ClampLeft(Width);
         Top = _anchorBottom - height;
 
@@ -106,6 +108,7 @@ public partial class FlyoutWindow : FluentWindow
         _lastHiddenTicks = Environment.TickCount64;
         Hide();
         AttachHistory(false);
+        _viewModel.CancelPendingResets();
     }
 
     /// <summary>
@@ -160,6 +163,18 @@ public partial class FlyoutWindow : FluentWindow
     /// </summary>
     private void UpdateRefreshRing() =>
         RefreshSlot.Child = _viewModel.IsRefreshing ? new ProgressRing { IsIndeterminate = true, Width = 16, Height = 16 } : null;
+
+    /// <summary>
+    /// Scrolls an element into view when it appears, for example the confirmation of a reset below the fold.
+    /// The element has its size only after the next layout pass.
+    /// </summary>
+    private void OnRevealed(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true && sender is FrameworkElement element)
+        {
+            Dispatcher.BeginInvoke(() => element.BringIntoView(), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
 
     private void UpdateEmptyState() =>
         EmptyText.Visibility = _viewModel.VisibleProviders.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

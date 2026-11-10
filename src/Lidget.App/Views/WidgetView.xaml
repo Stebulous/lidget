@@ -4,6 +4,7 @@
              xmlns:views="clr-namespace:Lidget.App.Views"
              xmlns:vm="clr-namespace:Lidget.App.ViewModels"
              xmlns:fmt="clr-namespace:Lidget.Core.Formatting;assembly=Lidget.Core"
+             xmlns:models="clr-namespace:Lidget.Core.Models;assembly=Lidget.Core"
              d:DataContext="{d:DesignInstance vm:UsageViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -49,6 +50,80 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="SessionRing" TargetType="views:RingArc">
+            <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Normal}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SessionRingSeverity}" Value="{x:Static fmt:UsageSeverity.Warning}">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Warning}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SessionRingSeverity}" Value="{x:Static fmt:UsageSeverity.Critical}">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Critical}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Muted}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasSessionRing}" Value="False">
+                    <Setter Property="Visibility" Value="Hidden" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="WeeklyRing" TargetType="views:RingArc">
+            <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Normal}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding WeeklyRingSeverity}" Value="{x:Static fmt:UsageSeverity.Warning}">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Warning}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding WeeklyRingSeverity}" Value="{x:Static fmt:UsageSeverity.Critical}">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Severity.Critical}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                    <Setter Property="Stroke" Value="{DynamicResource Taskbar.Muted}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasWeeklyRing}" Value="False">
+                    <Setter Property="Visibility" Value="Hidden" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The dot for an available banked reset. It has the warning color in the last 24 hours of a reset. -->
+        <Style x:Key="ResetDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Fill" Value="{DynamicResource Taskbar.ResetDot}" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasResetDot}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsResetDotUrgent}" Value="True">
+                    <Setter Property="Fill" Value="{DynamicResource Taskbar.Severity.Warning}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="BarsLayout" TargetType="StackPanel">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.WidgetStyle, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                             Value="{x:Static models:WidgetStyle.Rings}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RingsLayout" TargetType="Grid">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.WidgetStyle, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                             Value="{x:Static models:WidgetStyle.Rings}">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="WidgetSurface" TargetType="Border">
             <Setter Property="Background" Value="Transparent" />
             <Style.Triggers>
@@ -83,35 +158,51 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="vm:ProviderViewModel">
-                        <StackPanel Orientation="Horizontal" Margin="4,0" Background="Transparent"
-                                    ToolTip="{Binding WidgetTooltip}" ToolTipService.InitialShowDelay="400">
-                            <Grid Width="14" Height="14" VerticalAlignment="Center">
-                                <Path Data="{Binding Icon}" Stretch="Uniform" Style="{StaticResource ProviderIcon}" />
+                        <Grid Margin="4,0" Background="Transparent" VerticalAlignment="Center"
+                              ToolTip="{Binding WidgetTooltip}" ToolTipService.InitialShowDelay="400">
+                            <!-- The Rings style: the outer ring is the weekly limit, and the inner ring is the session limit. -->
+                            <Grid Width="28" Height="28" VerticalAlignment="Center" Style="{StaticResource RingsLayout}">
+                                <views:RingArc StrokeThickness="2.5" Percent="{Binding WeeklyRingPercent}"
+                                               Track="{DynamicResource Taskbar.Track}" Style="{StaticResource WeeklyRing}" />
+                                <views:RingArc Margin="4" StrokeThickness="2.5" Percent="{Binding SessionRingPercent}"
+                                               Track="{DynamicResource Taskbar.Track}" Style="{StaticResource SessionRing}" />
+                                <Path Width="11" Height="11" Data="{Binding Icon}" Stretch="Uniform" Style="{StaticResource ProviderIcon}" />
                                 <TextBlock Text="!" Style="{StaticResource StatusGlyph}"
-                                           FontWeight="Bold" FontSize="10" Margin="0,0,-5,-4"
+                                           FontWeight="Bold" FontSize="10" Margin="0,0,-3,-3"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                            Foreground="{DynamicResource Taskbar.Severity.Warning}" />
+                                <Ellipse Margin="0,-1,-1,0" Style="{StaticResource ResetDot}" />
                             </Grid>
-                            <Grid Width="26" Height="10" Margin="7,0,6,0" VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}}" />
-                                    <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.ColumnSpan="2" Height="4" CornerRadius="2" Background="{DynamicResource Taskbar.Track}" />
-                                <Border Grid.Column="0" Height="4" CornerRadius="2" Style="{StaticResource SeverityFill}" />
-                                <!-- The even-pace marker. The outer margins let its center reach both ends of the bar. -->
-                                <Grid Grid.ColumnSpan="2" Margin="-1,0" Visibility="{Binding WidgetHasPace, Converter={StaticResource BoolToVisibility}}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}}" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="1" Width="2" CornerRadius="1" Background="{DynamicResource Taskbar.Foreground}" />
+                            <StackPanel Orientation="Horizontal" Style="{StaticResource BarsLayout}">
+                                <Grid Width="14" Height="14" VerticalAlignment="Center">
+                                    <Path Data="{Binding Icon}" Stretch="Uniform" Style="{StaticResource ProviderIcon}" />
+                                    <TextBlock Text="!" Style="{StaticResource StatusGlyph}"
+                                               FontWeight="Bold" FontSize="10" Margin="0,0,-5,-4"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                               Foreground="{DynamicResource Taskbar.Severity.Warning}" />
+                                    <Ellipse Margin="0,-3,-4,0" Style="{StaticResource ResetDot}" />
                                 </Grid>
-                            </Grid>
-                            <TextBlock Text="{Binding WidgetText}" MinWidth="26" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource Taskbar.Foreground}" />
-                        </StackPanel>
+                                <Grid Width="26" Height="10" Margin="7,0,6,0" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}}" />
+                                        <ColumnDefinition Width="{Binding WidgetPercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.ColumnSpan="2" Height="4" CornerRadius="2" Background="{DynamicResource Taskbar.Track}" />
+                                    <Border Grid.Column="0" Height="4" CornerRadius="2" Style="{StaticResource SeverityFill}" />
+                                    <!-- The even-pace marker. The outer margins let its center reach both ends of the bar. -->
+                                    <Grid Grid.ColumnSpan="2" Margin="-1,0" Visibility="{Binding WidgetHasPace, Converter={StaticResource BoolToVisibility}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}}" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="{Binding WidgetPacePercent, Converter={StaticResource PercentToStar}, ConverterParameter=rest}" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="1" Width="2" CornerRadius="1" Background="{DynamicResource Taskbar.Foreground}" />
+                                    </Grid>
+                                </Grid>
+                                <TextBlock Text="{Binding WidgetText}" MinWidth="26" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Taskbar.Foreground}" />
+                            </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

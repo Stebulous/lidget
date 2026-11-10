@@ -74,6 +74,17 @@
                     <ComboBox AutomationProperties.Name="Show limits as" MinWidth="200" ItemsSource="{Binding DisplayOptions}" DisplayMemberPath="Label"
                               SelectedItem="{Binding SelectedDisplay}" />
                 </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon DataPie20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Widget style" />
+                            <TextBlock Text="Bars show one limit with its percentage. Rings show the weekly limit outside and the session limit inside." TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ComboBox AutomationProperties.Name="Widget style" MinWidth="200" ItemsSource="{Binding StyleOptions}" DisplayMemberPath="Label"
+                              SelectedItem="{Binding SelectedStyle}" />
+                </ui:CardControl>
                 <ui:CardControl Icon="{ui:SymbolIcon DataBarHorizontal20}">
                     <ui:CardControl.Header>
                         <StackPanel>
@@ -94,6 +105,16 @@
                         </StackPanel>
                     </ui:CardControl.Header>
                     <ui:ToggleSwitch AutomationProperties.Name="Show pace in the taskbar" IsChecked="{Binding ShowPaceInTaskbar}" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon TicketDiagonal20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Show resets in the taskbar" />
+                            <TextBlock Text="A dot on the logo shows that a banked reset is available." TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch AutomationProperties.Name="Show resets in the taskbar" IsChecked="{Binding ShowResetsInTaskbar}" />
                 </ui:CardControl>
                 <ui:CardControl Header="Distance from the system tray" Icon="{ui:SymbolIcon ArrowAutofitWidth20}">
                     <ui:NumberBox AutomationProperties.Name="Distance from the system tray" Width="140" Minimum="0" Maximum="400" SmallChange="2" LargeChange="20" MaxDecimalPlaces="0"
@@ -128,6 +149,17 @@
                            Visibility="{Binding ThresholdsError, Converter={StaticResource NullToCollapsed}}" />
                 <ui:CardControl Header="Notify when a limit resets" Icon="{ui:SymbolIcon ArrowReset20}">
                     <ui:ToggleSwitch AutomationProperties.Name="Notify when a limit resets" IsChecked="{Binding NotifyOnReset}" />
+                </ui:CardControl>
+
+                <ui:CardControl Icon="{ui:SymbolIcon TicketDiagonal20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Warn before a reset expires" />
+                            <TextBlock Text="One notification 24 hours before a banked reset expires, and one 2 hours before." TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch AutomationProperties.Name="Warn before a reset expires" IsChecked="{Binding WarnBeforeResetExpires}" />
                 </ui:CardControl>
 
                 <TextBlock Text="Claude readings while you work" Style="{StaticResource SectionHeader}" />

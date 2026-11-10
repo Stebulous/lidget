@@ -23,6 +23,11 @@ public sealed record DisplayOption(UsageDisplay Value, string Label)
     public override string ToString() => Label;
 }
 
+public sealed record StyleOption(WidgetStyle Value, string Label)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>Edits <see cref="LidgetSettings"/>. Each change saves and applies at once.</summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -54,6 +59,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         new(UsageDisplay.Used, "Used, for example 12% used"),
     ];
 
+    public IReadOnlyList<StyleOption> StyleOptions { get; } =
+    [
+        new(WidgetStyle.Bars, "Bars"),
+        new(WidgetStyle.Rings, "Rings"),
+    ];
+
     public string Version { get; } = typeof(SettingsViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public string DataDirectory => AppInfo.DataDirectory;
@@ -73,7 +84,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial DisplayOption? SelectedDisplay { get; set; }
 
     [ObservableProperty]
+    public partial StyleOption? SelectedStyle { get; set; }
+
+    [ObservableProperty]
     public partial bool ShowPaceInTaskbar { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShowResetsInTaskbar { get; set; }
+
+    [ObservableProperty]
+    public partial bool WarnBeforeResetExpires { get; set; }
 
     [ObservableProperty]
     public partial double RefreshIntervalMinutes { get; set; }
@@ -113,7 +133,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         CodexEnabled = s.CodexEnabled;
         SelectedMetric = MetricOptions.First(o => o.Value == s.WidgetMetric);
         SelectedDisplay = DisplayOptions.First(o => o.Value == s.UsageDisplay);
+        SelectedStyle = StyleOptions.First(o => o.Value == s.WidgetStyle);
         ShowPaceInTaskbar = s.ShowPaceInTaskbar;
+        ShowResetsInTaskbar = s.ShowResetsInTaskbar;
+        WarnBeforeResetExpires = s.WarnBeforeResetExpires;
         RefreshIntervalMinutes = s.RefreshIntervalMinutes;
         ThresholdsText = string.Join(", ", s.NotificationThresholds);
         NotifyOnReset = s.NotifyOnReset;
@@ -153,7 +176,19 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedStyleChanged(StyleOption? value)
+    {
+        if (value is not null)
+        {
+            Save(s => s with { WidgetStyle = value.Value });
+        }
+    }
+
     partial void OnShowPaceInTaskbarChanged(bool value) => Save(s => s with { ShowPaceInTaskbar = value });
+
+    partial void OnShowResetsInTaskbarChanged(bool value) => Save(s => s with { ShowResetsInTaskbar = value });
+
+    partial void OnWarnBeforeResetExpiresChanged(bool value) => Save(s => s with { WarnBeforeResetExpires = value });
 
     partial void OnRefreshIntervalMinutesChanged(double value) => Save(s => s with { RefreshIntervalMinutes = (int)Math.Round(value) });
 

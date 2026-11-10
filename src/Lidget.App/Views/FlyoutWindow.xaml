@@ -111,6 +111,109 @@
             </Grid>
         </DataTemplate>
 
+        <Style x:Key="ExpiryCaption" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsExpiringSoon}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate x:Key="ResetItemTemplate" DataType="vm:ResetItemViewModel">
+            <DockPanel Margin="0,8,0,0">
+                <ui:Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="10,3" FontSize="12" VerticalAlignment="Center"
+                           Content="Use reset" AutomationProperties.Name="{Binding Title, StringFormat=Use {0}}"
+                           Command="{Binding DataContext.BeginCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                           CommandParameter="{Binding}"
+                           Visibility="{Binding CanRedeem, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{Binding ExpiryText}" TextTrimming="CharacterEllipsis" Style="{StaticResource ExpiryCaption}" />
+                </StackPanel>
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ResetEventTemplate" DataType="vm:ResetEventViewModel">
+            <DockPanel Margin="0,4,0,0">
+                <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding TimeText}" Style="{StaticResource Caption}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}" ToolTip="{Binding Title}">
+                    <Run Text="{Binding Text, Mode=OneWay}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <Run Text="·" />
+                    <Run Text="{Binding Title, Mode=OneWay}" />
+                </TextBlock>
+            </DockPanel>
+        </DataTemplate>
+
+        <!-- The Resets row of a provider card (plan decisions D62 and D63). The data context is a ResetsViewModel. -->
+        <DataTemplate x:Key="ResetsTemplate" DataType="vm:ResetsViewModel">
+            <StackPanel Margin="0,12,0,0">
+                <ui:Button Margin="-8,0" Padding="8,5" Appearance="Transparent"
+                           HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                           Command="{Binding ToggleCommand}" AutomationProperties.Name="Resets">
+                    <DockPanel>
+                        <ui:SymbolIcon DockPanel.Dock="Left" Symbol="TicketDiagonal16" FontSize="16" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock DockPanel.Dock="Left" Margin="8,0,0,0" Text="Resets" FontSize="13" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <ui:SymbolIcon x:Name="Chevron" DockPanel.Dock="Right" Margin="8,0,0,0" Symbol="ChevronDown12" FontSize="12"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="{Binding SummaryText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Style="{StaticResource ExpiryCaption}" />
+                    </DockPanel>
+                </ui:Button>
+
+                <StackPanel x:Name="Details" Visibility="Collapsed" IsVisibleChanged="OnRevealed">
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}"
+                               Text="The list of resets is not available now. Open the flyout again in a moment."
+                               Visibility="{Binding HasCountOnly, Converter={StaticResource BoolToVisibility}}" />
+
+                    <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource ResetItemTemplate}" Focusable="False" />
+
+                    <!-- The confirmation. Lidget sends no request before the user selects Use reset here. -->
+                    <Border Margin="0,10,0,0" Padding="10,8,10,10" CornerRadius="6"
+                            Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                            IsVisibleChanged="OnRevealed"
+                            Visibility="{Binding IsConfirming, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       Text="{Binding Pending.Title, StringFormat=Use {0} now?}" />
+                            <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}" Text="{Binding Pending.ExpiryText}" />
+                            <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}"
+                                       Text="{Binding ConfirmUsageText, StringFormat=Used now: {0}}" />
+                            <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       Text="This uses one banked reset. You cannot undo it." />
+                            <TextBlock Margin="0,6,0,0" Text="Using the reset…" Style="{StaticResource Caption}"
+                                       Visibility="{Binding IsRedeeming, Converter={StaticResource BoolToVisibility}}" />
+                            <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ui:Button Content="Cancel" Padding="12,4" Margin="0,0,8,0" IsDefault="{Binding IsConfirming}"
+                                           Command="{Binding CancelCommand}" />
+                                <ui:Button Content="Use reset" Padding="12,4" Appearance="Primary"
+                                           Command="{Binding ConfirmCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12" Text="{Binding Message}"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                               Visibility="{Binding Message, Converter={StaticResource NullToCollapsed}}" />
+
+                    <StackPanel Margin="0,12,0,0" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="History" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <ItemsControl ItemsSource="{Binding History}" ItemTemplate="{StaticResource ResetEventTemplate}" Focusable="False" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                    <Setter TargetName="Details" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="Chevron" Property="Symbol" Value="ChevronUp12" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
         <DataTemplate x:Key="ProviderTemplate" DataType="vm:ProviderViewModel">
             <Border Margin="0,0,0,8" Padding="14,12,14,14" CornerRadius="8" BorderThickness="1"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
@@ -156,6 +259,9 @@
                         <TextBlock Margin="0,6,0,0" Text="{Binding CostNote}" TextWrapping="Wrap" Style="{StaticResource Caption}" />
                     </StackPanel>
 
+                    <ContentControl Content="{Binding Resets}" ContentTemplate="{StaticResource ResetsTemplate}" Focusable="False"
+                                    Visibility="{Binding Resets.IsVisible, Converter={StaticResource BoolToVisibility}}" />
+
                     <Border Margin="0,12,0,0" Padding="10,8" CornerRadius="4"
                             Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
                             Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}">
@@ -177,7 +283,8 @@
         </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <!-- A star row: the providers scroll when the flyout reaches its maximum height. See FlyoutWindow.ShowAt. -->
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -185,7 +292,9 @@
         <TextBlock Margin="2,0,0,12" Text="AI usage limits" FontSize="14" FontWeight="SemiBold"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding VisibleProviders}" ItemTemplate="{StaticResource ProviderTemplate}" Focusable="False" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <ItemsControl ItemsSource="{Binding VisibleProviders}" ItemTemplate="{StaticResource ProviderTemplate}" Focusable="False" />
+        </ScrollViewer>
 
         <TextBlock x:Name="EmptyText" Grid.Row="1" Margin="2,0,0,12" TextWrapping="Wrap" Style="{StaticResource Caption}"
                    Text="No providers are on. Open Settings to choose which limits to show." Visibility="Collapsed" />

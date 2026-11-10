@@ -13,11 +13,13 @@ public sealed partial class ProviderViewModel : ObservableObject
     private WidgetMetric _metric;
     private UsageDisplay _display;
     private bool _showPace;
+    private bool _showResetDot;
 
-    public ProviderViewModel(string id, string displayName)
+    public ProviderViewModel(string id, string displayName, TimeProvider time)
     {
         Id = id;
         DisplayName = displayName;
+        Resets = new ResetsViewModel(id, displayName, time);
         Icon = Application.Current.TryFindResource($"ProviderIcon.{id}") as Geometry;
         IconBrush = Application.Current.TryFindResource($"ProviderBrush.{id}") as Brush;
     }
@@ -32,6 +34,9 @@ public sealed partial class ProviderViewModel : ObservableObject
     public Brush? IconBrush { get; }
 
     public ObservableCollection<LimitViewModel> Limits { get; } = [];
+
+    /// <summary>The banked resets of the provider, for the flyout.</summary>
+    public ResetsViewModel Resets { get; }
 
     [ObservableProperty]
     public partial bool IsEnabled { get; set; } = true;
@@ -70,6 +75,36 @@ public sealed partial class ProviderViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string WidgetTooltip { get; set; } = string.Empty;
+
+    /// <summary>Whether the Rings widget style has a session limit to show in the inner ring.</summary>
+    [ObservableProperty]
+    public partial bool HasSessionRing { get; set; }
+
+    /// <summary>The length of the inner ring, from 0 to 100, in the display mode of the widget.</summary>
+    [ObservableProperty]
+    public partial double SessionRingPercent { get; set; }
+
+    [ObservableProperty]
+    public partial UsageSeverity SessionRingSeverity { get; set; }
+
+    /// <summary>Whether the Rings widget style has a weekly limit to show in the outer ring.</summary>
+    [ObservableProperty]
+    public partial bool HasWeeklyRing { get; set; }
+
+    /// <summary>The length of the outer ring, from 0 to 100, in the display mode of the widget.</summary>
+    [ObservableProperty]
+    public partial double WeeklyRingPercent { get; set; }
+
+    [ObservableProperty]
+    public partial UsageSeverity WeeklyRingSeverity { get; set; }
+
+    /// <summary>Whether the widget shows the dot for an available banked reset (plan decision D66).</summary>
+    [ObservableProperty]
+    public partial bool HasResetDot { get; set; }
+
+    /// <summary>Whether a reset expires in 24 hours. The dot then has the warning color.</summary>
+    [ObservableProperty]
+    public partial bool IsResetDotUrgent { get; set; }
 
     [ObservableProperty]
     public partial bool HasCosts { get; set; }
@@ -127,6 +162,7 @@ public sealed partial class ProviderViewModel : ObservableObject
             Limits.RemoveAt(Limits.Count - 1);
         }
 
+        Resets.Apply(snapshot.Resets, snapshot.Limits, _display, now);
         Tick(now);
     }
 
@@ -142,12 +178,13 @@ public sealed partial class ProviderViewModel : ObservableObject
             : "API-equivalent estimate from local session logs";
     }
 
-    /// <summary>Applies the widget metric, the display mode, and the pace setting, and shows the current data with them.</summary>
-    public void ApplySettings(WidgetMetric metric, UsageDisplay display, bool showPace, DateTimeOffset now)
+    /// <summary>Applies the widget metric, the display mode, the pace setting, and the reset dot setting, and shows the current data with them.</summary>
+    public void ApplySettings(LidgetSettings settings, DateTimeOffset now)
     {
-        _metric = metric;
-        _display = display;
-        _showPace = showPace;
+        _metric = settings.WidgetMetric;
+        _display = settings.UsageDisplay;
+        _showPace = settings.ShowPaceInTaskbar;
+        _showResetDot = settings.ShowResetsInTaskbar;
         if (_snapshot is { } snapshot)
         {
             Apply(snapshot, now);
@@ -161,6 +198,10 @@ public sealed partial class ProviderViewModel : ObservableObject
     /// <summary>Updates the widget values. The pace marker moves with time, so <see cref="Tick"/> calls this too.</summary>
     private void UpdateWidget(DateTimeOffset now)
     {
+        UpdateRings();
+        HasResetDot = _showResetDot && IsEnabled && Resets.AvailableCount > 0;
+        IsResetDotUrgent = HasResetDot && Resets.IsExpiringSoon;
+
         var selected = _snapshot?.SelectLimit(_metric);
         if (selected is null)
         {
@@ -180,6 +221,20 @@ public sealed partial class ProviderViewModel : ObservableObject
         WidgetPacePercent = pace is null ? 0 : UsageFormat.DisplayPercent(pace.ExpectedPercent, _display);
     }
 
+    /// <summary>The Rings style shows the session and weekly limits at the same time, so it does not use the widget metric.</summary>
+    private void UpdateRings()
+    {
+        var session = _snapshot?.Limits.FirstOrDefault(l => l.Kind == LimitKind.Session);
+        HasSessionRing = session is not null;
+        SessionRingPercent = session is null ? 0 : UsageFormat.DisplayPercent(session.UsedPercent, _display);
+        SessionRingSeverity = session is null ? UsageSeverity.Normal : UsageFormat.Severity(session.UsedPercent);
+
+        var weekly = _snapshot?.Limits.FirstOrDefault(l => l.Kind == LimitKind.Weekly);
+        HasWeeklyRing = weekly is not null;
+        WeeklyRingPercent = weekly is null ? 0 : UsageFormat.DisplayPercent(weekly.UsedPercent, _display);
+        WeeklyRingSeverity = weekly is null ? UsageSeverity.Normal : UsageFormat.Severity(weekly.UsedPercent);
+    }
+
     public void Tick(DateTimeOffset now)
     {
         foreach (var limit in Limits)
@@ -187,6 +242,7 @@ public sealed partial class ProviderViewModel : ObservableObject
             limit.Tick(now);
         }
 
+        Resets.Tick(now);
         UpdateWidget(now);
         UpdatedText = _snapshot is { } snapshot && HasData ? $"Updated {UsageFormat.Ago(snapshot.UpdatedAt, now)}" : string.Empty;
 
@@ -199,6 +255,11 @@ public sealed partial class ProviderViewModel : ObservableObject
                 // An indented line of its own, so that the tooltip does not wrap the pace inside a line.
                 lines.Add($"    {limit.PaceText}");
             }
+        }
+
+        if (Resets.AvailableCount > 0)
+        {
+            lines.Add($"Resets: {Resets.SummaryText}");
         }
 
         if (HasProblem)

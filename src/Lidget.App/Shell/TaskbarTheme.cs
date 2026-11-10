@@ -42,6 +42,7 @@ internal static class TaskbarTheme
         resources["Taskbar.Severity.Warning"] = Brush(IsLight ? "#9D5D00" : "#FCE100");
         resources["Taskbar.Severity.Critical"] = Brush(IsLight ? "#C42B1C" : "#FF99A4");
         resources["Taskbar.Muted"] = Brush(IsLight ? "#72000000" : "#8BFFFFFF");
+        resources["Taskbar.ResetDot"] = Brush(IsLight ? "#005FB8" : "#60CDFF");
         resources["Taskbar.PillBackground"] = Brush(IsLight ? "#F5F3F3F3" : "#F0202020");
 
         Changed?.Invoke(null, EventArgs.Empty);

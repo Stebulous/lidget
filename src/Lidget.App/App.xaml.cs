@@ -12,6 +12,7 @@ using Lidget.Core.Models;
 using Lidget.Core.Notifications;
 using Lidget.Core.Providers;
 using Lidget.Core.Refresh;
+using Lidget.Core.Resets;
 using Lidget.Core.StatusLine;
 using Lidget.Core.Storage;
 using Lidget.Providers;
@@ -81,7 +82,7 @@ public partial class App : Application
 
         var claude = new ClaudeProvider(
             new ClaudeCredentialStore(_http, time, _loggerFactory.CreateLogger<ClaudeCredentialStore>()),
-            new ClaudeUsageClient(_http, time),
+            new ClaudeUsageClient(_http, time, ClaudeCodeUsageCache.DefaultPath),
             time,
             _loggerFactory.CreateLogger<ClaudeProvider>(),
             [
@@ -89,7 +90,9 @@ public partial class App : Application
                 new ClaudeLimitFeed(_t3CodeSource, () => _settings.Current.ClaudeT3CodeFeed),
             ],
             new ClaudeCodeUsageCache(ClaudeCodeUsageCache.DefaultPath, time),
-            Path.Combine(AppInfo.DataDirectory, ClaudeProvider.WaitFileName));
+            Path.Combine(AppInfo.DataDirectory, ClaudeProvider.WaitFileName),
+            Path.Combine(AppInfo.DataDirectory, ClaudeProvider.ResetsFileName),
+            new ClaudeResetClient(_http, ClaudeCodeUsageCache.DefaultPath));
         _providers = [claude, CodexProvider.CreateDefault(time, _loggerFactory)];
 
         _scheduler = new RefreshScheduler(_providers, () => _settings.Current, time, _loggerFactory.CreateLogger<RefreshScheduler>());
@@ -117,9 +120,41 @@ public partial class App : Application
             }
         };
 
+        // Banked resets (plan milestone 5): the history of reset events, the expiry warnings, and the redemption.
+        var resetTracker = new ResetTracker(_history, time, _loggerFactory.CreateLogger<ResetTracker>());
+        _scheduler.SnapshotPublished += (_, snapshot) => resetTracker.Apply(snapshot);
+        var resetWarnings = new ResetExpiryEvaluator(
+            ResetExpiryEvaluator.DefaultStatePath,
+            () => _settings.Current,
+            DisplayName,
+            time,
+            _loggerFactory.CreateLogger<ResetExpiryEvaluator>());
+        _scheduler.SnapshotPublished += (_, snapshot) =>
+        {
+            foreach (var notification in resetWarnings.Evaluate(snapshot))
+            {
+                _toasts.Show(notification);
+            }
+        };
+        var redemptions = new ResetRedemptionService(
+            _providers,
+            new RedeemKeyStore(RedeemKeyStore.DefaultPath, _loggerFactory.CreateLogger<RedeemKeyStore>()),
+            resetTracker,
+            _loggerFactory.CreateLogger<ResetRedemptionService>());
+
+        // Read the limits again after a redemption, so that the flyout shows the new usage and the new count.
+        redemptions.Completed += (_, _) => _ = _scheduler.RefreshNowAsync();
+
         _costs = CreateCostTracker(time);
 
-        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time) { History = historyViewModel, Costs = _costs };
+        _viewModel = new UsageViewModel(_providers, _scheduler, _settings, time)
+        {
+            History = historyViewModel,
+            Costs = _costs,
+            Redemptions = redemptions,
+            ResetHistory = _history,
+            ResetTracker = resetTracker,
+        };
         _viewModel.SettingsRequested += (_, _) => ShowSettings();
         _viewModel.QuitRequested += (_, _) => Quit();
 
