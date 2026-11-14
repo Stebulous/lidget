@@ -94,7 +94,7 @@ public sealed partial class ResetsViewModel(string providerId, string displayNam
 
     public bool IsConfirming => Pending is not null;
 
-    /// <summary>The used share of the session and weekly limits, so that the user sees what a redemption gives.</summary>
+    /// <summary>The session and weekly limits in the display mode, so that the user sees what a redemption gives.</summary>
     [ObservableProperty]
     public partial string ConfirmUsageText { get; set; } = string.Empty;
 

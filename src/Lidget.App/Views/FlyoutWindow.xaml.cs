@@ -89,6 +89,7 @@ public partial class FlyoutWindow : FluentWindow
         var height = Math.Min(MaxHeight, Root.DesiredSize.Height + Root.Margin.Top + Root.Margin.Bottom);
         Left = ClampLeft(Width);
         Top = _anchorBottom - height;
+        ProvidersScroll.ScrollToTop();
 
         Show();
         Activate();

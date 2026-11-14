@@ -181,7 +181,7 @@
                                        Text="{Binding Pending.Title, StringFormat=Use {0} now?}" />
                             <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}" Text="{Binding Pending.ExpiryText}" />
                             <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}"
-                                       Text="{Binding ConfirmUsageText, StringFormat=Used now: {0}}" />
+                                       Text="{Binding ConfirmUsageText, StringFormat=Now: {0}}" />
                             <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" FontSize="12"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        Text="This uses one banked reset. You cannot undo it." />
@@ -292,7 +292,7 @@
         <TextBlock Margin="2,0,0,12" Text="AI usage limits" FontSize="14" FontWeight="SemiBold"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+        <ScrollViewer x:Name="ProvidersScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
             <ItemsControl ItemsSource="{Binding VisibleProviders}" ItemTemplate="{StaticResource ProviderTemplate}" Focusable="False" />
         </ScrollViewer>
 
