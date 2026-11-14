@@ -28,13 +28,18 @@ The name joins "limits" and "widget".
 - The widget shows the tightest limit of each provider as a bar and a percentage.
   By default, the percentage is the share of the limit that is left. A setting changes it to the used share.
   A tick on each bar marks the even-pace level. A setting removes the tick.
+  The Rings style shows each provider as two rings instead: the weekly limit outside, and the session limit inside.
+- A dot on a provider logo shows that the provider has a banked reset.
 - A click on the widget opens a flyout. For each provider, the flyout shows:
   - The session limit (5 hours) and the weekly limit, with reset countdowns.
   - The [pace](docs/user-guide.md#read-the-pace) of each limit: on pace, in reserve, or in deficit.
     If a limit runs out before its reset at the current rate, an amber text shows the time until it runs out.
   - The API-equivalent cost for today, the last 7 days, and the last 30 days, from local session logs.
   - A history chart of the last 24 hours or 7 days.
+  - The [banked resets](docs/user-guide.md#use-a-banked-reset), with their expiry times and history.
+    You can use a reset from the flyout, after a confirmation.
 - A notification shows when the used share of a limit passes 80% and 95%.
+  Another notification shows 24 hours and 2 hours before a banked reset expires.
 - Claude values update while you work, from the T3 Code logs or from the Claude Code statusline.
   Lidget also reads the usage response that Claude Code saves.
   Lidget then sends fewer requests to the Claude usage endpoint, which Anthropic rate-limits.

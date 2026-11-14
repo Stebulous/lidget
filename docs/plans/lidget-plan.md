@@ -1,6 +1,6 @@
 # Lidget — Development plan
 
-> Status: Released (0.2.2, 2026-10-31) · M5 implemented, QA pending (2026-11-10) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
+> Status: Released (0.2.2, 2026-10-31) · 0.3.0 release candidate passed QA, not released (2026-11-14) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
@@ -123,7 +123,7 @@ Record a new decision before you build one. [Later](#later) lists the candidates
 | D64 | Experience | Expiry warnings: one toast 24 hours before a reset expires, and one toast 2 hours before. A click opens the flyout. The **Warn before a reset expires** setting is on by default. The flyout shows a reset in amber during its last 24 hours. | The first toast gives time to plan. The second toast is the last warning. | agent default |
 | D65 | Approach | Reset history: `history.db` gets a table of reset events. The events are: first seen, redeemed in Lidget, used in another app, and expired. A reset that goes away before its expiry time counts as used in another app. | The providers list only the available resets. Lidget must record the changes to show a history. | user |
 | D66 | Experience | Ring widget style: the **Widget style** setting selects **Bars** (default) or **Rings**. The Rings style shows each provider logo in two concentric rings: the outer ring for the weekly limit, and the inner ring for the session limit. In the two styles, a dot on the logo shows that a banked reset is available. The **Show resets in the taskbar** setting controls the dot, and is on by default. | The user asked for indicators like the OpenBot indicators. Rings use less taskbar width, and they give the dot a clear position. | user |
-| D67 | Approach | Claude user agent: the usage request and the reset request send `User-Agent: claude-cli/<version> (external, cli)`, as T3 Code does. The version comes from `lastReleaseNotesSeen` in `~/.claude.json`, with `2.1.322` as the fallback. (Refines D58 and D61.) | On 2026-11-10, the endpoint gave no reset data to the `Lidget/0.2.2` user agent, and 4 grants to the Claude Code user agent, with the same login. The maintainer asked for the method of T3 Code. | agent default |
+| D67 | Approach | Claude user agent: the usage request and the reset request send `User-Agent: claude-cli/<version> (external, cli)`, as T3 Code does. The version comes from `lastReleaseNotesSeen` in `~/.claude.json`, with `2.1.322` as the fallback. (Refines D58 and D61.) | On 2026-11-10, the endpoint gave no reset data to the `Lidget/0.2.2` user agent, and 4 grants to the Claude Code user agent, with the same login. The maintainer asked for the method of T3 Code, and accepted this user agent on 2026-11-14. | user |
 
 ## Constraints
 
@@ -392,7 +392,7 @@ A later automatic redemption rule can use it without a change (see [Later](#late
 
 Milestones M0 to M4 built the first release, 0.1.0. All their tasks are complete.
 Each later change has a decision in [Decisions](#decisions) and an entry in the [Evidence log](#evidence-log).
-M5 is implemented for the release 0.3.0. T5.6 to T5.9 have open manual checks.
+M5 is complete for the release 0.3.0, except the manual toast check of T5.7.
 
 ### M0 — Bootstrap and spikes
 
@@ -741,7 +741,7 @@ The release is 0.3.0. Update the guide that owns each behavior in the same task.
   - Execution skill: lean-build.
   - Parallel-safe: no.
 
-- [ ] **T5.6 Flyout: resets, redemption, and history**
+- [x] **T5.6 Flyout: resets, redemption, and history**
   - Objective: show the **Resets** row, the confirmation dialog, and the history (D62, D63).
   - Touches: `src/Lidget.App/Views/FlyoutWindow.xaml`, `Views/RedeemDialog.xaml` (new), `ViewModels/ProviderViewModel.cs`, `ViewModels/ResetsViewModel.cs` (new), `docs/user-guide.md`.
   - Depends on: T5.2, T5.5.
@@ -766,7 +766,7 @@ The release is 0.3.0. Update the guide that owns each behavior in the same task.
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T5.6.
 
-- [ ] **T5.8 Ring widget style and reset dot**
+- [x] **T5.8 Ring widget style and reset dot**
   - Objective: add the Rings style and the dot for available resets (D66).
   - Touches: `src/Lidget.App/Views/WidgetView.xaml`, `Shell/FallbackPillWindow.cs`, `ViewModels/ProviderViewModel.cs`, `src/Lidget.Core/Models/LidgetSettings.cs`, `Views/SettingsWindow.xaml`, `docs/user-guide.md`.
   - Depends on: T5.2.
@@ -779,7 +779,7 @@ The release is 0.3.0. Update the guide that owns each behavior in the same task.
   - Execution skill: lean-build.
   - Parallel-safe: yes, with T5.6 and T5.7.
 
-- [ ] **T5.9 Release candidate QA**
+- [x] **T5.9 Release candidate QA**
   - Objective: prove M5 on an installed build.
   - Touches: `docs/qa-checklist.md`, plan evidence log.
   - Depends on: T5.1 to T5.8.
@@ -1294,3 +1294,45 @@ Each entry has a date, a revision, the commands, the results, and the open gates
   The first Claude expiry warning is due on November 16.
 - Observation, not from this change: the installed `0.2.2` logged "Claude token refresh was rejected (HTTP 400 invalid_grant)" from 5:54 PM to 6:14 PM. The later requests passed with the token that Claude Code saved.
 - Open gates: the checks in "Not done", and the maintainer's review of D67.
+
+### 2026-11-14 — 0.3.0 release candidate QA (revisions `e0f15a8` and `f578934`)
+
+- The maintainer accepted D67 on 2026-11-14.
+  The maintainer also accepted a release without a live check of the expiry toasts.
+- Environment: 2560 × 1440, 125% scale, centered taskbar, dark mode.
+  `dotnet build Lidget.sln` gave 0 warnings, and `dotnet test Lidget.sln` passed 366 tests.
+- Builds: local packages `0.3.0-rc.1` of `e0f15a8` and `0.3.0-rc.2` of `f578934`.
+  A prerelease version lets the published `0.3.0` update these copies.
+- Install: `Lidget-win-Setup.exe --silent` replaced the installed `0.2.2`, and kept the data folder.
+  The Start menu shortcut started `0.3.0-rc.1`, and the widget joined the taskbar within 1 second.
+  The `Run` value came back at the first start.
+- Widget, Bars style: the Codex logo had the blue reset dot.
+  The Claude logo had no dot, because no Claude reset data was read (see "Not done").
+- Widget, Rings style: a change in Settings changed the widget at once.
+  The rings stayed next to the tray at 100%, 125%, and 200% scale.
+  The Bars style was not checked at 100% and 200% in this QA.
+- Light taskbar: the bars, the rings, the pace ticks, and the dots changed to the light colors, and stayed readable.
+  Light app mode: the flyout, the **Resets** list, and the confirmation stayed readable.
+- Flyout, with the real data folder:
+  - The Codex **Resets** row showed "2 available · next expires in 17d 14h", the 2 resets, and 2 "Received" history events.
+  - **Use reset** opened the confirmation, and **Cancel** closed it.
+    The log had no "Redemption of" message, and `reset-redemptions.json` did not exist.
+  - The flyout stayed below the top of the screen at 200%, and the provider cards scrolled.
+- Finding: the confirmation said "Used now: Session 77% left", which mixes used and left.
+  `f578934` changes the label to "Now:".
+- Finding: the flyout opened with the scroll position of the last open.
+  `f578934` scrolls the provider cards to the top at each open.
+  The check of `0.3.0-rc.2` showed the fix at 125% scale. It was not checked again at 200%.
+- Update: with `LIDGET_UPDATE_FEED` set to the local release folder, `0.3.0-rc.1` downloaded the `0.3.0-rc.2` delta package in 8 seconds.
+  After a restart from the Start menu shortcut, `0.3.0-rc.2` ran.
+  The Claude `Retry-After` wait stayed in effect after each restart.
+- Idle CPU with the flyout closed: 0.047 seconds in 60 seconds.
+- Not done:
+  - Claude banked resets on the installed build.
+    The usage endpoint gave HTTP 429 at 2:27 AM and at 3:22 AM, and the next request is after 4:22 AM.
+    The live read of 2026-11-10 used the same code in the Debug build.
+  - The expiry toasts (T5.7). The first Claude warning is due on November 16.
+  - The uninstall check. M5 did not change the uninstall code.
+- System settings: the scale, and the taskbar and app color modes, are back to their values from before the test.
+  The installed `0.3.0-rc.2` runs from the Start menu shortcut, with the widget style back to Bars.
+- Open gates: the push of `main`, the tag `v0.3.0`, and the release, with the maintainer's permission.
