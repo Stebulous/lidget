@@ -1,6 +1,6 @@
 # Lidget — Development plan
 
-> Status: Released (0.2.2, 2026-10-31) · 0.3.0 release candidate passed QA, not released (2026-11-14) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
+> Status: Released (0.3.0, 2026-11-14) · Planned: 2026-10-22 · Repository: `https://github.com/Stebulous/lidget`
 
 The name is final: "Lidget" joins "limits" and "widget" (D42).
 
@@ -1336,3 +1336,31 @@ Each entry has a date, a revision, the commands, the results, and the open gates
 - System settings: the scale, and the taskbar and app color modes, are back to their values from before the test.
   The installed `0.3.0-rc.2` runs from the Start menu shortcut, with the widget style back to Bars.
 - Open gates: the push of `main`, the tag `v0.3.0`, and the release, with the maintainer's permission.
+
+### 2026-11-14 — Release 0.3.0 and the Claude 429 cause (revision `1db5c95`)
+
+- The maintainer approved the release on 2026-11-14.
+- CI passed on `1db5c95`. The tag `v0.3.0` started the **Release** workflow, which passed.
+  The draft had the full package, a delta package from `0.2.2`, the installer, the portable zip, `RELEASES`, and `releases.win.json`.
+- Draft check: `Lidget-0.3.0-full.nupkg` has the ID `Lidget`, `Lidget.exe` with the version `0.3.0+1db5c95`, and `lidget-statusline.exe`.
+  The draft installer was not run. The QA ran on `0.3.0-rc.2`, and the later changes are the version number and the docs.
+- The agent published the release at 4:40 AM EST as the latest release.
+- Update: the installed `0.3.0-rc.2` started from the Start menu shortcut at 4:40 AM, and downloaded `0.3.0` from GitHub in 6 seconds.
+  The next start ran `0.3.0+1db5c95`. The `Run` value points to `current\Lidget.exe`.
+- Claude 429 cause, from the Lidget log and the T3 Code server traces (`~/.t3/userdata/logs/server.trace.ndjson*`):
+  - T3 Code `0.1.8` reads the banked resets with `GET /api/oauth/usage?cedar_ember=1&skip_spend=1`.
+    The traces show 200 at 2:14 AM, then 429 at 2:19, 2:24, and 2:34 AM. T3 Code does not wait for the `Retry-After` time.
+  - The Lidget request at 2:27 AM got a wait until 3:19:42 AM, 1 hour after the first T3 Code 429.
+    The Lidget request at 3:22 AM got a new wait of 1 hour, and the request at 4:26 AM got another.
+  - Thus, the endpoint blocks the login for 1 hour, and requests during the block seem to start a new block.
+  - T3 Code started 28 Claude queries from November 2 to 14, so Claude Code process starts are not the main load.
+  - Not known: the number of Lidget requests that passed, because the log does not record them. The traces are sampled.
+- T3 Code issues: #27772 (open) asks for a back-off on the Claude capability probes. #19807 (open) covers hub reads.
+  PR #19474, which limited the reset reads to one in 10 minutes, was closed without a merge on 2026-11-12.
+  No issue covers the reset read. The agent drafted one, and did not post it.
+- Observation: during the block, the Claude card shows the rate-limit warning although the T3 Code feed is current.
+  `Combine` keeps the status `Ok` only if all limits are current, and the feed has no Weekly (Fable) limit. This behavior is from before 0.3.0.
+- Open gates:
+  - The expiry toasts (T5.7). The first Claude warning is due on November 16.
+  - Claude banked resets on the installed build, after the next Claude request that passes.
+  - The T3 Code issue, if the maintainer posts it.
