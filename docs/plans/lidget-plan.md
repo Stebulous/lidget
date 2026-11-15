@@ -1364,3 +1364,16 @@ Each entry has a date, a revision, the commands, the results, and the open gates
   - The expiry toasts (T5.7). The first Claude warning is due on November 16.
   - Claude banked resets on the installed build, after the next Claude request that passes.
   - The T3 Code issue, if the maintainer posts it.
+
+### 2026-11-15 — Claude resets on 0.3.0, the T3 Code issue, and the 0.3.0 screenshots (revision `94177a2`)
+
+- Claude banked resets on the installed `0.3.0`: at 12:35 AM, the Claude card was current and the **Resets** row showed 5 resets.
+  Only the next reset showed **Use reset**. No reset was used.
+- T3 Code issue: a new search found no duplicate. `readClaudeResetCredits` on T3 Code `main` (`e2afd2546e`) still has no 429 branch.
+  Open PR #33979 limits the reset read to one a minute, and does not read `Retry-After`.
+  The agent posted the issue as pingdotgg/t3code#37053 with the maintainer's approval.
+- Screenshots from the installed `0.3.0`, with the dark theme at 125% scale:
+  - `docs/images/widget.png` (Bars, with the reset dots) and `docs/images/resets.png` (the Claude **Resets** row open).
+  - `docs/images/flyout.png`, from the maintainer.
+  - `docs/images/widget-rings.png` comes from the `0.3.0-rc.1` QA on 2026-11-14. The widget code did not change after `0.3.0-rc.1`.
+- Open gates: the expiry toasts (T5.7). The first Claude warning is due on November 16.

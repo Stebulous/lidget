@@ -125,6 +125,8 @@ Each reset has an expiry time.
 The **Resets** row shows the number of available resets and the time to the next expiry.
 Select the row to open the list of resets and the **History** list.
 
+![The Claude card with the Resets row open: four resets with their expiry times, and the History list](images/resets.png)
+
 1. Select **Use reset** next to a reset.
    Lidget shows the reset, its expiry time, and the current usage.
 2. Read the current usage. If little of the limit is used, the reset gives little.

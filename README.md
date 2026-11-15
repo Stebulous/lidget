@@ -10,9 +10,10 @@ Lidget is a Windows 11 taskbar widget that shows the usage limits of AI subscrip
 It tracks Claude (Pro and Max plans, through Claude Code) and Codex (ChatGPT plans, through the Codex CLI).
 The name joins "limits" and "widget".
 
-![The Lidget widget in the taskbar, with an even-pace marker on each bar](docs/images/widget.png)
+![The widget, with a pace tick on each bar and a reset dot on each logo](docs/images/widget.png)
+![The Rings style of the widget](docs/images/widget-rings.png)
 
-![The Lidget flyout with limits, pace, cost estimates, and history](docs/images/flyout.png)
+![The Lidget flyout with limits, pace, cost estimates, banked resets, and history](docs/images/flyout.png)
 
 ## Start here
 
