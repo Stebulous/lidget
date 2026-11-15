@@ -1376,4 +1376,11 @@ Each entry has a date, a revision, the commands, the results, and the open gates
   - `docs/images/widget.png` (Bars, with the reset dots) and `docs/images/resets.png` (the Claude **Resets** row open).
   - `docs/images/flyout.png`, from the maintainer.
   - `docs/images/widget-rings.png` comes from the `0.3.0-rc.1` QA on 2026-11-14. The widget code did not change after `0.3.0-rc.1`.
+- Correction to the 2026-11-14 reading of the 429 block, from `lidget-20261114.log`:
+  - Each 1-hour wait ends exactly 1 hour after the first refused request: T3 Code at 2:19:43 AM, Lidget at 3:22:30 AM and 4:26:34 AM.
+  - Requests inside a block did not move its end. The Lidget request at 2:27:51 AM and the T3 Code retries at 2:24 and 2:34 AM left the end at 3:19:42 AM.
+  - Thus, a request inside a block does not start a new block. The first request after a block ends can start a new one.
+    A quota that the earlier requests keep full is one possible cause. It is not proved.
+  - The Lidget log has no 429 on November 14 before 2:27:51 AM. Lidget requests that passed before 2:19 AM are not known, because the log does not record them.
+  - The Lidget request at 2:27:51 AM was the first start of `0.3.0-rc.1`. No wait was saved, so it requested at once. The later restarts obeyed the saved wait and sent no request.
 - Open gates: the expiry toasts (T5.7). The first Claude warning is due on November 16.
